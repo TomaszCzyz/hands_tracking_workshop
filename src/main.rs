@@ -1,5 +1,3 @@
-mod models;
-
 use bevy::prelude::*;
 use bevy::math::primitives::Capsule3d;
 use leaprs::{Connection, ConnectionConfig, Event};
@@ -60,12 +58,12 @@ fn spawn_light(mut commands: Commands) {
 }
 
 fn spawn_camera(mut commands: Commands) {
-    commands.spawn((
+    commands.spawn(
         Camera3dBundle {
             transform: CAMERA_ORIGIN.looking_at(Vec3::Y * 200., Vec3::Y),
             ..default()
         }
-    ));
+    );
 }
 
 fn setup(
