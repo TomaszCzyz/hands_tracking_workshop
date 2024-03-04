@@ -15,8 +15,6 @@ fn main() {
 }
 
 fn spawn_light(mut commands: Commands) {
-    let t = 0;
-
     commands.spawn(PointLightBundle {
         point_light: PointLight {
             shadows_enabled: true,
