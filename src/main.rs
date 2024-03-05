@@ -9,6 +9,7 @@ pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 350., 500.);
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, LeapInputPlugin))
+        .add_plugins(WorldInspectorPlugin::new())
         .insert_resource(ClearColor(Color::SEA_GREEN))
         .add_systems(Startup, (spawn_light, spawn_camera))
         .add_systems(Update, spawn_on_pinch)
