@@ -2,4 +2,4 @@
 
 ### Initial setup
 
-![VID_20240303_214659.gif](assets/VID_20240303_214659.gif)
+![March 5](assets/VID_20240305_195938.gif)
