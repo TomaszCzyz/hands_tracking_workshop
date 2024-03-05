@@ -5,7 +5,10 @@ use bevy::asset::Assets;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{Quat, Vec3};
 use bevy::pbr::{PbrBundle, StandardMaterial};
-use bevy::prelude::{Capsule3d, Commands, Component, default, Event, EventWriter, Mesh, NonSendMut, Query, ResMut, SpatialBundle, Transform, Visibility, With, World};
+use bevy::prelude::{
+    default, Capsule3d, Commands, Component, Event, EventWriter, Mesh, NonSendMut, Query, ResMut,
+    SpatialBundle, Transform, Visibility, With, World,
+};
 use leaprs::{Bone, Connection, ConnectionConfig, Digit, Event as LeapEvent, HandType};
 
 #[derive(Event, Debug, Clone)]
@@ -26,8 +29,7 @@ pub struct LeapInputPlugin;
 
 impl Plugin for LeapInputPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_event::<HandPinch>()
+        app.add_event::<HandPinch>()
             .add_systems(Startup, create_connection)
             .add_systems(Startup, setup)
             .add_systems(Update, update_hand_data);
@@ -44,24 +46,25 @@ fn setup(
 
     commands
         .spawn((SpatialBundle::default(), HandsOrigin))
-        .with_children(|parent| for _ in 0..40 {
-            parent
-                .spawn((PbrBundle {
-                    mesh: meshes.add(capsule),
-                    visibility: Visibility::Visible,
-                    material: debug_material.clone(),
-                    transform: Transform::from_xyz(
-                        120.0,
-                        2.0,
-                        0.0,
-                    ),
-                    ..default()
-                }, BoneComponent));
+        .with_children(|parent| {
+            for _ in 0..40 {
+                parent.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(capsule),
+                        visibility: Visibility::Visible,
+                        material: debug_material.clone(),
+                        ..default()
+                    },
+                    BoneComponent,
+                ));
+            }
         });
 }
 
 fn create_connection(world: &mut World) {
-    let mut connection = Connection::create(ConnectionConfig::default()).expect("Failed to create connection");
+    let mut connection =
+        Connection::create(ConnectionConfig::default()).expect("Failed to create connection");
+
     connection.open().expect("Failed to open the connection");
 
     world.insert_non_send_resource(connection);
@@ -93,7 +96,8 @@ fn update_hand_data(
 
                             *transform = Transform {
                                 translation: Vec3::from_array(bone.prev_joint().array()),
-                                rotation: Quat::from_array(bone.rotation().array()) * Quat::from_rotation_x(PI / 2.),
+                                rotation: Quat::from_array(bone.rotation().array())
+                                    * Quat::from_rotation_x(PI / 2.),
                                 ..default()
                             };
                             *visibility = Visibility::Visible;
@@ -119,4 +123,3 @@ fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
         digit.metacarpal(),
     ]
 }
-

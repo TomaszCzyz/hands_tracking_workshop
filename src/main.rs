@@ -1,10 +1,14 @@
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::leap_input::{HandPinch, LeapInputPlugin};
 
 mod leap_input;
 
-pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 350., 500.);
+pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 400., 400.);
+
+#[derive(Component)]
+struct PlayerCamera;
 
 fn main() {
     App::new()
@@ -17,30 +21,24 @@ fn main() {
 }
 
 fn spawn_light(mut commands: Commands) {
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            shadows_enabled: true,
-            intensity: 600000.,
-            range: 20000000.,
+    commands.spawn(DirectionalLightBundle {
+        transform: Transform::from_xyz(50.0, 50.0, 50.0).looking_at(Vec3::ZERO, Vec3::Y),
+        directional_light: DirectionalLight {
+            illuminance: 1_500.,
             ..default()
         },
-        transform: Transform::from_xyz(107.60522, 235.05785, 32.378628),
         ..default()
     });
-
-    // commands.insert_resource(AmbientLight {
-    //     color: Color::ORANGE_RED,
-    //     brightness: 0.02,
-    // });
 }
 
 fn spawn_camera(mut commands: Commands) {
-    commands.spawn(
+    commands.spawn((
         Camera3dBundle {
             transform: CAMERA_ORIGIN.looking_at(Vec3::Y * 200., Vec3::Y),
             ..default()
-        }
-    );
+        },
+        PlayerCamera,
+    ));
 }
 
 fn spawn_on_pinch(
@@ -50,17 +48,33 @@ fn spawn_on_pinch(
     mut right_pinch_events: EventReader<HandPinch>,
 ) {
     if let Some(event) = right_pinch_events.read().next() {
-        let debug_material = materials.add(StandardMaterial { lightmap_exposure: 0.5, base_color: Color::CYAN, metallic: 0.8, ..default() });
+        let distance = (event.pos.z - CAMERA_ORIGIN.translation.z).abs();
+        let normalized_distance = distance.min(600.0) / 600.0;
+
+        let red = normalized_distance;
+        let green = 1.0 - normalized_distance;
+        let blue = normalized_distance;
+
+        let debug_material = materials.add(StandardMaterial {
+            base_color: Color::rgb(red, green, blue),
+            metallic: 0.1,
+            perceptual_roughness: 0.1,
+            ..default()
+        });
 
         println!("spawning circle in position: {}", event.pos);
-        commands
-            .spawn(PbrBundle {
-                mesh: meshes.add(Sphere::default().mesh().uv(32, 18).scaled_by(Vec3::splat(15f32))),
-                visibility: Visibility::Visible,
-                material: debug_material, // materials.add(Color::WHITE),
-                transform: Transform::from_translation(event.pos),
-                ..default()
-            });
+        commands.spawn(PbrBundle {
+            mesh: meshes.add(
+                Sphere::default()
+                    .mesh()
+                    .uv(32, 18)
+                    .scaled_by(Vec3::splat(15f32)),
+            ),
+            visibility: Visibility::Visible,
+            material: debug_material, // materials.add(Color::WHITE),
+            transform: Transform::from_translation(event.pos),
+
+            ..default()
+        });
     }
 }
-
