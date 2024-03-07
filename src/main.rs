@@ -10,6 +10,8 @@ pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 400., 400.);
 #[derive(Component)]
 struct PlayerCamera;
 
+// TODO: today's commit
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, LeapInputPlugin))
