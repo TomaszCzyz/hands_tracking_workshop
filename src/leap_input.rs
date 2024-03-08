@@ -5,10 +5,7 @@ use bevy::asset::Assets;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{Quat, Vec3};
 use bevy::pbr::{PbrBundle, StandardMaterial};
-use bevy::prelude::{
-    default, Capsule3d, Commands, Component, Event, EventWriter, Mesh, NonSendMut, Query, ResMut,
-    Resource, SpatialBundle, Transform, Visibility, With, World,
-};
+use bevy::prelude::{default, Capsule3d, Commands, Component, Event, EventWriter, Mesh, NonSendMut, Query, ResMut, Resource, SpatialBundle, Transform, Visibility, With, World, IntoSystemConfigs};
 use leaprs::{Bone, Connection, ConnectionConfig, Digit, Event as LeapEvent, Hand, HandType};
 
 #[derive(Event, Debug, Clone)]
@@ -85,7 +82,7 @@ impl Plugin for LeapInputPlugin {
             .insert_resource(HandsData::default())
             .add_systems(Startup, create_connection)
             .add_systems(Startup, setup)
-            .add_systems(Update, update_hand_data);
+            .add_systems(Update, (update_hand_data, check_for_hands_events).chain());
     }
 }
 
@@ -170,6 +167,20 @@ fn update_hand_data(
             _ => {}
         }
     }
+}
+
+fn check_for_hands_events(
+    mut hand_pinch: EventWriter<HandPinch>,
+    mut hands_res: ResMut<HandsData>,
+) {
+    hands_res.hands.iter().filter_map(|&hand| hand).for_each(|hand| {
+        if hand.pinch_strength > 0.7 {
+            hand_pinch.send(HandPinch {
+                hand_type: hand.type_,
+                pos: Vec3::from_array(hand.index().distal().next_joint().array()),
+            });
+        }
+    });
 }
 
 fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
