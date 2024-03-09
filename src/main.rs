@@ -50,7 +50,7 @@ fn spawn_on_pinch(
     mut right_pinch_events: EventReader<HandPinch>,
 ) {
     if let Some(event) = right_pinch_events.read().next() {
-        let distance = (event.pos.z - CAMERA_ORIGIN.translation.z).abs();
+        let distance = (event.transform.translation.z - CAMERA_ORIGIN.translation.z).abs();
         let normalized_distance = distance.min(600.0) / 600.0;
 
         let red = normalized_distance;
@@ -64,7 +64,7 @@ fn spawn_on_pinch(
             ..default()
         });
 
-        println!("spawning circle in position: {}", event.pos);
+        println!("spawning circle in position: {:?}", event.transform);
         commands.spawn(PbrBundle {
             mesh: meshes.add(
                 Sphere::default()
@@ -74,7 +74,7 @@ fn spawn_on_pinch(
             ),
             visibility: Visibility::Visible,
             material: debug_material, // materials.add(Color::WHITE),
-            transform: Transform::from_translation(event.pos),
+            transform: event.transform,
 
             ..default()
         });

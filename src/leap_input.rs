@@ -5,13 +5,13 @@ use bevy::asset::Assets;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{Quat, Vec3};
 use bevy::pbr::{PbrBundle, StandardMaterial};
-use bevy::prelude::{default, Capsule3d, Commands, Component, Event, EventWriter, Mesh, NonSendMut, Query, ResMut, Resource, SpatialBundle, Transform, Visibility, With, World, IntoSystemConfigs};
+use bevy::prelude::{default, Capsule3d, Commands, Component, Event, EventWriter, IntoSystemConfigs, Mesh, NonSendMut, Query, ResMut, Resource, SpatialBundle, Transform, Visibility, With, World, Res};
 use leaprs::{Bone, Connection, ConnectionConfig, Digit, Event as LeapEvent, Hand, HandType};
 
 #[derive(Event, Debug, Clone)]
 pub struct HandPinch {
     pub hand_type: HandType,
-    pub pos: Vec3,
+    pub transform: Transform,
 }
 
 #[derive(Resource)]
@@ -133,7 +133,6 @@ fn create_connection(world: &mut World) {
 fn update_hand_data(
     mut leap_conn: NonSendMut<Connection>,
     mut digits_query: Query<(&mut Transform, &mut Visibility), With<BoneComponent>>,
-    mut hand_pinch: EventWriter<HandPinch>,
     mut hands_res: ResMut<HandsData>,
 ) {
     if let Ok(message) = leap_conn.poll(50) {
@@ -147,13 +146,6 @@ fn update_hand_data(
                 hands_res.hands[1] = e.hands().get(1).and_then(|hand| Some(hand.into()));
 
                 for hand in e.hands().iter() {
-                    if hand.pinch_strength() > 0.7 {
-                        hand_pinch.send(HandPinch {
-                            hand_type: hand.hand_type(),
-                            pos: Vec3::from_array(hand.index().distal().next_joint().array()),
-                        });
-                    }
-
                     for digit in hand.digits().iter() {
                         for bone in get_bones(digit) {
                             let (mut transform, mut visibility) = query_iter.next().unwrap();
@@ -179,18 +171,19 @@ fn update_hand_data(
     }
 }
 
-fn check_for_hands_events(
-    mut hand_pinch: EventWriter<HandPinch>,
-    mut hands_res: ResMut<HandsData>,
-) {
-    hands_res.hands.iter().filter_map(|&hand| hand).for_each(|hand| {
-        if hand.pinch_strength > 0.7 {
-            hand_pinch.send(HandPinch {
-                hand_type: hand.type_,
-                pos: Vec3::from_array(hand.index().distal().next_joint().array()),
-            });
-        }
-    });
+fn check_for_hands_events(mut hand_pinch: EventWriter<HandPinch>, hands_res: Res<HandsData>) {
+    hands_res
+        .hands
+        .iter()
+        .filter_map(|hand| hand.as_ref())
+        .for_each(|hand| {
+            if hand.pinch_strength > 0.7 {
+                hand_pinch.send(HandPinch {
+                    hand_type: hand.type_,
+                    transform: hand.pinch_transform,
+                });
+            }
+        });
 }
 
 fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
