@@ -53,10 +53,19 @@ pub struct HandData {
     /// The normalized estimate of the grab hand pose.
     /// Zero is not grabbing; one is fully grabbing.
     pub grab_strength: f32,
+
+    /// The transform of the points between tops of the index finger and thumb.
+    pub pinch_transform: Transform,
 }
 
 impl From<&Hand<'_>> for HandData {
     fn from(hand: &Hand) -> Self {
+        let index_translation = Vec3::from_array(hand.index().distal().next_joint().array());
+        let thumb_translation = Vec3::from_array(hand.thumb().distal().next_joint().array());
+        let middle_point = index_translation.lerp(thumb_translation, 0.5);
+        let pinch_transform =
+            Transform::from_translation(middle_point).looking_at(index_translation, Vec3::Y);
+
         Self {
             type_: hand.hand_type(),
             confidence: hand.confidence(),
@@ -65,6 +74,7 @@ impl From<&Hand<'_>> for HandData {
             grab_angle: hand.grab_angle(),
             pinch_strength: hand.pinch_strength(),
             grab_strength: hand.grab_strength(),
+            pinch_transform,
         }
     }
 }
