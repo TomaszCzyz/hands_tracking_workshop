@@ -5,8 +5,12 @@ use bevy::asset::Assets;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{Quat, Vec3};
 use bevy::pbr::{PbrBundle, StandardMaterial};
-use bevy::prelude::{default, Capsule3d, Commands, Component, Event, EventWriter, IntoSystemConfigs, Mesh, NonSendMut, Query, ResMut, Resource, SpatialBundle, Transform, Visibility, With, World, Res};
+use bevy::prelude::{
+    default, Capsule3d, Commands, Component, Event, EventWriter, IntoSystemConfigs, Mesh,
+    NonSendMut, Query, Res, ResMut, Resource, SpatialBundle, Transform, Visibility, With, World,
+};
 use leaprs::{Bone, Connection, ConnectionConfig, Digit, Event as LeapEvent, Hand, HandType};
+use ringbuf::{Rb, StaticRb};
 
 #[derive(Event, Debug, Clone)]
 pub struct HandPinch {
@@ -27,6 +31,20 @@ impl Default for HandsData {
     }
 }
 
+#[derive(Resource)]
+pub struct HandsDataHistory {
+    historical_data: StaticRb<[Option<HandData>; 2], 20usize>,
+}
+
+impl Default for HandsDataHistory {
+    fn default() -> Self {
+        Self {
+            historical_data: StaticRb::<[Option<HandData>; 2], 20usize>::default(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct HandData {
     /// Identifies the chirality of this hand.
     pub type_: HandType,
@@ -90,9 +108,18 @@ impl Plugin for LeapInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<HandPinch>()
             .insert_resource(HandsData::default())
+            .insert_resource(HandsDataHistory::default())
             .add_systems(Startup, create_connection)
             .add_systems(Startup, setup)
-            .add_systems(Update, (update_hand_data, check_for_hands_events).chain());
+            .add_systems(
+                Update,
+                (
+                    update_hand_data,
+                    check_for_hands_events,
+                    print_historical_hands_data,
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -134,6 +161,7 @@ fn update_hand_data(
     mut leap_conn: NonSendMut<Connection>,
     mut digits_query: Query<(&mut Transform, &mut Visibility), With<BoneComponent>>,
     mut hands_res: ResMut<HandsData>,
+    mut hands_history_res: ResMut<HandsDataHistory>,
 ) {
     if let Ok(message) = leap_conn.poll(50) {
         match &message.event() {
@@ -144,6 +172,10 @@ fn update_hand_data(
 
                 hands_res.hands[0] = e.hands().get(0).and_then(|hand| Some(hand.into()));
                 hands_res.hands[1] = e.hands().get(1).and_then(|hand| Some(hand.into()));
+
+                hands_history_res
+                    .historical_data
+                    .push_overwrite([hands_res.hands[0].clone(), hands_res.hands[1].clone()]);
 
                 for hand in e.hands().iter() {
                     for digit in hand.digits().iter() {
@@ -169,6 +201,16 @@ fn update_hand_data(
             _ => {}
         }
     }
+}
+
+fn print_historical_hands_data(hands_data_history: Res<HandsDataHistory>) {
+    let pinches = hands_data_history
+        .historical_data
+        .iter()
+        .map(|x| x[0].as_ref().and_then(|hand| Some(hand.pinch_strength)))
+        .collect::<Vec<_>>();
+
+    println!("hands history: {:?}", pinches)
 }
 
 fn check_for_hands_events(mut hand_pinch: EventWriter<HandPinch>, hands_res: Res<HandsData>) {
