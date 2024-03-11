@@ -203,7 +203,22 @@ fn update_hand_data(
     }
 }
 
+/// Finding 'pinch gesture', by checking if hands history data contains
+/// sequence of pinch_strength values which starts and ends below threshold, but reaches
+/// threshold in between
+/// Example value for pinch gestures, threshold: 0.7 (newest -> oldest):
+/// [0.1, 0.1, 0.3, 0.5, 0.8, 0.7, 0.4, 0.2, 0.3, 0.2, 0.1]
 fn print_historical_hands_data(hands_data_history: Res<HandsDataHistory>) {
+    for hands in hands_data_history.historical_data.iter() {
+        if let Some(ref hand) = hands[0] {
+            if hand.pinch_strength > 0.7 {
+                return;
+            }
+        } else {
+            return;
+        }
+    }
+
     let pinches = hands_data_history
         .historical_data
         .iter()
