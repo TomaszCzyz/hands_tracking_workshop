@@ -12,6 +12,8 @@ use bevy::prelude::{
 use leaprs::{Bone, Connection, ConnectionConfig, Digit, Event as LeapEvent, Hand, HandType};
 use ringbuf::{Rb, StaticRb};
 
+const HANDS_DATA_HISTORY_SIZE: usize = 30;
+
 #[derive(Event, Debug, Clone)]
 pub struct HandPinch {
     pub hand_type: HandType,
@@ -33,13 +35,13 @@ impl Default for HandsData {
 
 #[derive(Resource)]
 pub struct HandsDataHistory {
-    historical_data: StaticRb<[Option<HandData>; 2], 20usize>,
+    historical_data: StaticRb<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>,
 }
 
 impl Default for HandsDataHistory {
     fn default() -> Self {
         Self {
-            historical_data: StaticRb::<[Option<HandData>; 2], 20usize>::default(),
+            historical_data: StaticRb::<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>::default(),
         }
     }
 }
@@ -111,15 +113,7 @@ impl Plugin for LeapInputPlugin {
             .insert_resource(HandsDataHistory::default())
             .add_systems(Startup, create_connection)
             .add_systems(Startup, setup)
-            .add_systems(
-                Update,
-                (
-                    update_hand_data,
-                    check_for_hands_events,
-                    print_historical_hands_data,
-                )
-                    .chain(),
-            );
+            .add_systems(Update, (update_hand_data, detect_pinch_event).chain());
     }
 }
 
@@ -214,39 +208,48 @@ enum Stage {
 /// threshold in between
 /// Example value for pinch gestures, threshold: 0.7 (newest -> oldest):
 /// [0.1, 0.1, 0.3, 0.5, 0.8, 0.7, 0.4, 0.2, 0.3, 0.2, 0.1]
-fn print_historical_hands_data(hands_data_history: Res<HandsDataHistory>) {
-    let pinch_strengths_iter = hands_data_history
+fn detect_pinch_event(
+    mut hand_pinch: EventWriter<HandPinch>,
+    hands_data_history: Res<HandsDataHistory>,
+) {
+    // TODO: sampling should be based om time, not frames.
+    let hands_data_iter = hands_data_history
         .historical_data
         .iter()
-        .map(|x| x[0])
+        .map(|x| x[0].as_ref())
         .take_while(|x| x.is_some())
-        .map(|x| x.unwrap())
-        .map(|hand_data| hand_data.pinch_strength);
+        .map(|x| x.unwrap());
 
-    for pinch_strength in pinch_strengths_iter {}
-
-    let pinches = hands_data_history
-        .historical_data
-        .iter()
-        .map(|x| x[0].as_ref().and_then(|hand| Some(hand.pinch_strength)))
-        .collect::<Vec<_>>();
-
-    println!("hands history: {:?}", pinches)
-}
-
-fn check_for_hands_events(mut hand_pinch: EventWriter<HandPinch>, hands_res: Res<HandsData>) {
-    hands_res
-        .hands
-        .iter()
-        .filter_map(|hand| hand.as_ref())
-        .for_each(|hand| {
-            if hand.pinch_strength > 0.7 {
+    let threshold = 0.7;
+    let mut current_stage = Stage::BeforePinch(0);
+    for hand in hands_data_iter {
+        match current_stage {
+            Stage::BeforePinch(ref mut val) => {
+                if hand.pinch_strength < threshold {
+                    *val += 1;
+                } else if *val != 0 {
+                    current_stage = Stage::Pinching(0);
+                } else {
+                    return;
+                }
+            }
+            Stage::Pinching(ref mut val) => {
+                if hand.pinch_strength > threshold {
+                    *val += 1;
+                } else if *val != 0 {
+                    current_stage = Stage::AfterPinch(0);
+                } else {
+                    return;
+                }
+            }
+            Stage::AfterPinch(ref mut _val) => {
                 hand_pinch.send(HandPinch {
                     hand_type: hand.type_,
                     transform: hand.pinch_transform,
                 });
             }
-        });
+        }
+    }
 }
 
 fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {

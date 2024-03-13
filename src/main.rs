@@ -64,7 +64,6 @@ fn spawn_on_pinch(
             ..default()
         });
 
-        println!("spawning circle in position: {:?}", event.transform);
         commands.spawn(PbrBundle {
             mesh: meshes.add(
                 Sphere::default()
