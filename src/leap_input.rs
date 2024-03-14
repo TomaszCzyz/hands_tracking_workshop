@@ -5,14 +5,12 @@ use bevy::asset::Assets;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{Quat, Vec3};
 use bevy::pbr::{PbrBundle, StandardMaterial};
-use bevy::prelude::{
-    default, Capsule3d, Commands, Component, Event, EventWriter, IntoSystemConfigs, Mesh,
-    NonSendMut, Query, Res, ResMut, Resource, SpatialBundle, Transform, Visibility, With, World,
-};
+use bevy::prelude::*;
 use leaprs::{Bone, Connection, ConnectionConfig, Digit, Event as LeapEvent, Hand, HandType};
 use ringbuf::{Rb, StaticRb};
 
 const HANDS_DATA_HISTORY_SIZE: usize = 30;
+const PINCH_GESTURE_MIN_INTERVAL: f32 = 0.5;
 
 #[derive(Event, Debug, Clone)]
 pub struct HandPinch {
@@ -25,11 +23,14 @@ pub struct HandsData {
     hands: [Option<HandData>; 2],
 }
 
+#[derive(Resource, Default)]
+pub struct PinchGestureInfo {
+    last_pinch_time: f32,
+}
+
 impl Default for HandsData {
     fn default() -> Self {
-        Self {
-            hands: [None, None],
-        }
+        Self { hands: [None, None] }
     }
 }
 
@@ -80,8 +81,7 @@ impl From<&Hand<'_>> for HandData {
         let index_translation = Vec3::from_array(hand.index().distal().next_joint().array());
         let thumb_translation = Vec3::from_array(hand.thumb().distal().next_joint().array());
         let middle_point = index_translation.lerp(thumb_translation, 0.5);
-        let pinch_transform =
-            Transform::from_translation(middle_point).looking_at(index_translation, Vec3::Y);
+        let pinch_transform = Transform::from_translation(middle_point).looking_at(index_translation, Vec3::Y);
 
         Self {
             type_: hand.hand_type(),
@@ -111,17 +111,14 @@ impl Plugin for LeapInputPlugin {
         app.add_event::<HandPinch>()
             .insert_resource(HandsData::default())
             .insert_resource(HandsDataHistory::default())
+            .insert_resource(PinchGestureInfo::default())
             .add_systems(Startup, create_connection)
             .add_systems(Startup, setup)
             .add_systems(Update, (update_hand_data, detect_pinch_event).chain());
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
+fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
     let debug_material = materials.add(StandardMaterial { ..default() });
     let capsule = Capsule3d::new(7., 25.);
 
@@ -143,8 +140,7 @@ fn setup(
 }
 
 fn create_connection(world: &mut World) {
-    let mut connection =
-        Connection::create(ConnectionConfig::default()).expect("Failed to create connection");
+    let mut connection = Connection::create(ConnectionConfig::default()).expect("Failed to create connection");
 
     connection.open().expect("Failed to open the connection");
 
@@ -178,8 +174,7 @@ fn update_hand_data(
 
                             *transform = Transform {
                                 translation: Vec3::from_array(bone.prev_joint().array()),
-                                rotation: Quat::from_array(bone.rotation().array())
-                                    * Quat::from_rotation_x(PI / 2.),
+                                rotation: Quat::from_array(bone.rotation().array()) * Quat::from_rotation_x(PI / 2.),
                                 ..default()
                             };
                             *visibility = Visibility::Visible;
@@ -211,6 +206,8 @@ enum Stage {
 fn detect_pinch_event(
     mut hand_pinch: EventWriter<HandPinch>,
     hands_data_history: Res<HandsDataHistory>,
+    mut pinch_gesture_info: ResMut<PinchGestureInfo>,
+    time: Res<Time<Real>>,
 ) {
     // TODO: sampling should be based om time, not frames.
     let hands_data_iter = hands_data_history
@@ -243,6 +240,10 @@ fn detect_pinch_event(
                 }
             }
             Stage::AfterPinch(ref mut _val) => {
+                if pinch_gesture_info.last_pinch_time > time.elapsed_seconds() - PINCH_GESTURE_MIN_INTERVAL {
+                    return;
+                }
+                pinch_gesture_info.last_pinch_time = time.elapsed_seconds();
                 hand_pinch.send(HandPinch {
                     hand_type: hand.type_,
                     transform: hand.pinch_transform,
