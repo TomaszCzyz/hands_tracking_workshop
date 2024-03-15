@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::utils::petgraph::visit::Walker;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::leap_input::{HandPinch, LeapInputPlugin};
@@ -10,14 +11,12 @@ pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 400., 400.);
 #[derive(Component)]
 struct PlayerCamera;
 
-// TODO: today's commit
-
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, LeapInputPlugin))
         .add_plugins(WorldInspectorPlugin::new())
         .insert_resource(ClearColor(Color::SEA_GREEN))
-        .add_systems(Startup, (spawn_light, spawn_camera))
+        .add_systems(Startup, (spawn_light, spawn_camera, spawn_ui_text))
         .add_systems(Update, spawn_on_pinch)
         .run();
 }
@@ -42,6 +41,39 @@ fn spawn_camera(mut commands: Commands) {
         PlayerCamera,
     ));
 }
+
+fn spawn_ui_text(mut commands: Commands) {
+    // example instructions
+    let style = TextStyle {
+        font_size: 20.0,
+        ..default()
+    };
+    commands.spawn(
+        TextBundle::from_sections(vec![
+            TextSection::new("Controls\n", style.clone()),
+            TextSection::new("---------------\n", style.clone()),
+            TextSection::new("A - Start creating a shape", style),
+        ])
+            .with_style(Style {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(12.0),
+                left: Val::Px(12.0),
+                ..default()
+            }),
+    );
+}
+
+// fn spawn_create_shape_button(mut commands: Commands) {
+//
+// }
+fn keyboard_input(
+    keys: Res<ButtonInput<KeyCode>>,
+) {
+    if keys.just_released(KeyCode::KeyA) {
+        // Space was pressed
+    }
+}
+
 
 fn spawn_on_pinch(
     mut commands: Commands,
