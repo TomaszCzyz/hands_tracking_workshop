@@ -1,6 +1,6 @@
+use std::fmt::Display;
+
 use bevy::prelude::*;
-use bevy::utils::petgraph::visit::Walker;
-use bevy::utils::tracing::Instrument;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::leap_input::{HandPinch, LeapInputPlugin};
@@ -16,7 +16,7 @@ struct PlayerCamera;
 pub enum CurrentMode {
     #[default]
     Non,
-    CrateShape,
+    CreateShape,
 }
 
 fn main() {
@@ -26,7 +26,7 @@ fn main() {
         .insert_resource(ClearColor(Color::SEA_GREEN))
         .insert_resource(CurrentMode::default())
         .add_systems(Startup, (spawn_light, spawn_camera, spawn_ui_text))
-        .add_systems(Update, (spawn_on_pinch, keyboard_input))
+        .add_systems(Update, (spawn_on_pinch, keyboard_input, update_current_mode_text))
         .run();
 }
 
@@ -51,16 +51,21 @@ fn spawn_camera(mut commands: Commands) {
     ));
 }
 
-fn spawn_ui_text(mut commands: Commands, current_mode: Res<CurrentMode>) {
+#[derive(Component)]
+struct ControlsDesc;
+
+fn spawn_ui_text(mut commands: Commands) {
     let style = TextStyle {
         font_size: 20.0,
         ..default()
     };
-    commands.spawn(
+    commands.spawn((
         TextBundle::from_sections(vec![
             TextSection::new("Controls\n", style.clone()),
             TextSection::new("---------------\n", style.clone()),
-            TextSection::new(format!("Current mode: {:?}\n", current_mode), style.clone()),
+            TextSection::new("Current mode: ", style.clone()),
+            TextSection::new("Non", style.clone()),
+            TextSection::new("\n", style.clone()),
             TextSection::new("A - Start creating a shape", style.clone()),
         ])
         .with_style(Style {
@@ -69,21 +74,20 @@ fn spawn_ui_text(mut commands: Commands, current_mode: Res<CurrentMode>) {
             left: Val::Px(12.0),
             ..default()
         }),
-    );
+        ControlsDesc,
+    ));
+}
+
+fn update_current_mode_text(current_mode: Res<CurrentMode>, mut text: Query<&mut Text, With<ControlsDesc>>) {
+    text.single_mut().sections[3].value = format!("{:?}", *current_mode);
 }
 
 fn keyboard_input(keys: Res<ButtonInput<KeyCode>>, mut current_mode: ResMut<CurrentMode>) {
     if keys.just_released(KeyCode::KeyA) {
-        println!("A pressed");
-        match current_mode.as_ref() {
-            CurrentMode::CrateShape => *current_mode = CurrentMode::Non,
-            CurrentMode::Non => {
-                println!("Current mode was Non");
-                *current_mode = CurrentMode::CrateShape
-            },
-            _ => {}
-        }
-        // Space was pressed
+        *current_mode = match *current_mode {
+            CurrentMode::Non => CurrentMode::CreateShape,
+            CurrentMode::CreateShape => CurrentMode::Non,
+        };
     }
 }
 
