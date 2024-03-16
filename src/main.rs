@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::utils::petgraph::visit::Walker;
+use bevy::utils::tracing::Instrument;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::leap_input::{HandPinch, LeapInputPlugin};
@@ -11,13 +12,21 @@ pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 400., 400.);
 #[derive(Component)]
 struct PlayerCamera;
 
+#[derive(Resource, Default, Debug)]
+pub enum CurrentMode {
+    #[default]
+    Non,
+    CrateShape,
+}
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, LeapInputPlugin))
         .add_plugins(WorldInspectorPlugin::new())
         .insert_resource(ClearColor(Color::SEA_GREEN))
+        .insert_resource(CurrentMode::default())
         .add_systems(Startup, (spawn_light, spawn_camera, spawn_ui_text))
-        .add_systems(Update, spawn_on_pinch)
+        .add_systems(Update, (spawn_on_pinch, keyboard_input))
         .run();
 }
 
@@ -42,8 +51,7 @@ fn spawn_camera(mut commands: Commands) {
     ));
 }
 
-fn spawn_ui_text(mut commands: Commands) {
-    // example instructions
+fn spawn_ui_text(mut commands: Commands, current_mode: Res<CurrentMode>) {
     let style = TextStyle {
         font_size: 20.0,
         ..default()
@@ -52,28 +60,32 @@ fn spawn_ui_text(mut commands: Commands) {
         TextBundle::from_sections(vec![
             TextSection::new("Controls\n", style.clone()),
             TextSection::new("---------------\n", style.clone()),
-            TextSection::new("A - Start creating a shape", style),
+            TextSection::new(format!("Current mode: {:?}\n", current_mode), style.clone()),
+            TextSection::new("A - Start creating a shape", style.clone()),
         ])
-            .with_style(Style {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(12.0),
-                left: Val::Px(12.0),
-                ..default()
-            }),
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..default()
+        }),
     );
 }
 
-// fn spawn_create_shape_button(mut commands: Commands) {
-//
-// }
-fn keyboard_input(
-    keys: Res<ButtonInput<KeyCode>>,
-) {
+fn keyboard_input(keys: Res<ButtonInput<KeyCode>>, mut current_mode: ResMut<CurrentMode>) {
     if keys.just_released(KeyCode::KeyA) {
+        println!("A pressed");
+        match current_mode.as_ref() {
+            CurrentMode::CrateShape => *current_mode = CurrentMode::Non,
+            CurrentMode::Non => {
+                println!("Current mode was Non");
+                *current_mode = CurrentMode::CrateShape
+            },
+            _ => {}
+        }
         // Space was pressed
     }
 }
-
 
 fn spawn_on_pinch(
     mut commands: Commands,
@@ -97,12 +109,7 @@ fn spawn_on_pinch(
         });
 
         commands.spawn(PbrBundle {
-            mesh: meshes.add(
-                Sphere::default()
-                    .mesh()
-                    .uv(32, 18)
-                    .scaled_by(Vec3::splat(15f32)),
-            ),
+            mesh: meshes.add(Sphere::default().mesh().uv(32, 18).scaled_by(Vec3::splat(15f32))),
             visibility: Visibility::Visible,
             material: debug_material, // materials.add(Color::WHITE),
             transform: event.transform,
