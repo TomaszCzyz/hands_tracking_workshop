@@ -15,7 +15,7 @@ const PINCH_GESTURE_MIN_INTERVAL: f32 = 0.5;
 trait Gesture {
     /// Simple implementation can analyze all data every time.
     /// However, I should support detecting events based on incremental change
-    fn has_occurred(hands_data: &[HandsData]);
+    fn has_occurred(&self, hands_data: &[HandsData]);
 }
 
 // TODO: check if there is abstraction for this
@@ -24,7 +24,7 @@ type Timestamp = usize;
 struct GestureManager {
     gestures_tracked: Vec<Gesture>,
     // TODO: bounded collection seems appropriate for this
-    gestures_timeline: Vec<(Gesture, Timestamp)>
+    gestures_timeline: Vec<(dyn Gesture, Timestamp)>
 }
 
 
@@ -237,7 +237,7 @@ fn detect_pinch_event(
     mut hand_pinch: EventWriter<HandPinch>,
     hands_data_history: Res<HandsDataHistory>,
     mut pinch_gesture_info: ResMut<PinchGestureInfo>,
-    time: Res<Timestamp<Real>>,
+    time: Res<Time<Real>>,
 ) {
     // TODO: sampling should be based om time, not frames.
     let hands_data_iter = hands_data_history
