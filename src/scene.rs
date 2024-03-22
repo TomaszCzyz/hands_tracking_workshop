@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::CAMERA_ORIGIN;
+
 pub struct ScenePlugin;
 
 #[derive(Component)]
@@ -7,8 +9,7 @@ struct PlayerCamera;
 
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(CurrentMode::default())
+        app.insert_resource(CurrentMode::default())
             .add_systems(Startup, (spawn_light, spawn_camera, spawn_ui_text))
             .add_systems(Update, (keyboard_input, update_current_mode_text));
     }
@@ -59,12 +60,12 @@ fn spawn_ui_text(mut commands: Commands) {
             TextSection::new("\n", style.clone()),
             TextSection::new("A - Start creating a new shape", style.clone()),
         ])
-            .with_style(Style {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(12.0),
-                left: Val::Px(12.0),
-                ..default()
-            }),
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..default()
+        }),
         ControlsDesc,
     ));
 }

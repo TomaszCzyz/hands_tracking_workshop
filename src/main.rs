@@ -2,10 +2,13 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::leap_input::{HandPinch, LeapInputPlugin};
+use crate::lines::{LineList, LineMaterial};
+use crate::scene::ScenePlugin;
+use crate::utils::find_two_largest;
 
 mod leap_input;
-mod scene;
 mod lines;
+mod scene;
 mod utils;
 
 pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 400., 400.);
@@ -71,7 +74,7 @@ fn spawn_on_pinch(
                 }),
                 material: line_materials.add(LineMaterial { color: Color::GREEN }),
                 ..default()
-            }, ));
+            },));
         }
     }
 }

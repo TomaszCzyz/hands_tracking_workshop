@@ -1,3 +1,4 @@
+use bevy::pbr::{MaterialPipeline, MaterialPipelineKey};
 use bevy::prelude::*;
 use bevy::render::mesh::{MeshVertexBufferLayout, PrimitiveTopology};
 use bevy::render::render_asset::RenderAssetUsages;
@@ -8,7 +9,7 @@ use bevy::render::render_resource::{
 /// A list of lines with a start and end position
 #[derive(Debug, Clone)]
 pub struct LineList {
-    lines: Vec<(Vec3, Vec3)>,
+    pub(crate) lines: Vec<(Vec3, Vec3)>,
 }
 
 impl From<LineList> for Mesh {
@@ -23,7 +24,7 @@ impl From<LineList> for Mesh {
 #[derive(Asset, TypePath, Default, AsBindGroup, Debug, Clone)]
 pub struct LineMaterial {
     #[uniform(0)]
-    color: Color,
+    pub(crate) color: Color,
 }
 
 impl Material for LineMaterial {

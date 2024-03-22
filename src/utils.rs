@@ -1,6 +1,6 @@
-fn find_two_largest<T, F, K: Ord + Copy>(mut iter: impl Iterator<Item = T>, mut selector: F) -> (T, T)
-    where
-        F: FnMut(&T) -> K,
+pub fn find_two_largest<T, F, K: Ord + Copy>(mut iter: impl Iterator<Item = T>, mut selector: F) -> (T, T)
+where
+    F: FnMut(&T) -> K,
 {
     let mut largest = iter.next().unwrap();
     let mut second_largest = iter.next().unwrap();
