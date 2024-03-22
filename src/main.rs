@@ -62,6 +62,7 @@ fn spawn_on_pinch(
             },
             NewShapePoint(number_of_points),
         ));
+
         if number_of_points > 1 {
             let (largest, second_largest) = find_two_largest(new_shape_points.iter(), |&(_, p)| p);
             commands.spawn((MaterialMeshBundle {

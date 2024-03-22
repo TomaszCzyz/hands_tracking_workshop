@@ -12,6 +12,50 @@ use ringbuf::{Rb, StaticRb};
 const HANDS_DATA_HISTORY_SIZE: usize = 30;
 const PINCH_GESTURE_MIN_INTERVAL: f32 = 0.5;
 
+trait Gesture {
+    /// Simple implementation can analyze all data every time.
+    /// However, I should support detecting events based on incremental change
+    fn has_occurred(hands_data: &[HandsData]);
+}
+
+// TODO: check if there is abstraction for this
+type Timestamp = usize;
+
+struct GestureManager {
+    gestures_tracked: Vec<Gesture>,
+    // TODO: bounded collection seems appropriate for this
+    gestures_timeline: Vec<(Gesture, Timestamp)>
+}
+
+
+impl GestureManager {
+    fn detect_gestures(&self) {
+        // TODO: it can be dene in parallel. Maybe each detection should be separate system?...
+        // but I think it will hinder more than help, as I want to keep track of gestures timeline
+        // so results synchronization it required, which will be more complicated for many systems
+        for gesture in self.tracking_gestures {
+            if gesture.has_occured() {
+                // self.gestures_timeline.push(gesture, );
+                // do something, e.g. write event
+            }
+        }
+    }
+}
+
+pub struct LeapInputPlugin;
+
+impl Plugin for LeapInputPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<HandPinch>()
+            .insert_resource(HandsData::default())
+            .insert_resource(HandsDataHistory::default())
+            .insert_resource(PinchGestureInfo::default())
+            .add_systems(Startup, create_connection)
+            .add_systems(Startup, setup)
+            .add_systems(Update, (update_hand_data, detect_pinch_event).chain());
+    }
+}
+
 #[derive(Event, Debug, Clone)]
 pub struct HandPinch {
     pub hand_type: HandType,
@@ -104,20 +148,6 @@ pub struct HandsOrigin;
 #[derive(Component)]
 pub struct BoneComponent;
 
-pub struct LeapInputPlugin;
-
-impl Plugin for LeapInputPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_event::<HandPinch>()
-            .insert_resource(HandsData::default())
-            .insert_resource(HandsDataHistory::default())
-            .insert_resource(PinchGestureInfo::default())
-            .add_systems(Startup, create_connection)
-            .add_systems(Startup, setup)
-            .add_systems(Update, (update_hand_data, detect_pinch_event).chain());
-    }
-}
-
 fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
     let debug_material = materials.add(StandardMaterial { ..default() });
     let capsule = Capsule3d::new(7., 25.);
@@ -207,7 +237,7 @@ fn detect_pinch_event(
     mut hand_pinch: EventWriter<HandPinch>,
     hands_data_history: Res<HandsDataHistory>,
     mut pinch_gesture_info: ResMut<PinchGestureInfo>,
-    time: Res<Time<Real>>,
+    time: Res<Timestamp<Real>>,
 ) {
     // TODO: sampling should be based om time, not frames.
     let hands_data_iter = hands_data_history
