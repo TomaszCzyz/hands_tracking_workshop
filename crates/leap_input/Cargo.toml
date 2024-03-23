@@ -1,0 +1,9 @@
+[package]
+name = "leap_input"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.13.0", features = ["dynamic_linking"] }
+leaprs = "0.1.4"
+ringbuf = "0.3.3"

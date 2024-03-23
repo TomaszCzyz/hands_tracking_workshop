@@ -2118,13 +2118,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hand_gestures"
+version = "0.1.0"
+
+[[package]]
 name = "hands_tracking_workshop"
 version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
- "leaprs",
- "ringbuf",
 ]
 
 [[package]]
@@ -2363,6 +2365,15 @@ name = "leap-sys"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23603c7542c3b4b3b6fd83c7fe267a744f33573ec242ef150f4388e12ae52562"
+
+[[package]]
+name = "leap_input"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "leaprs",
+ "ringbuf",
+]
 
 [[package]]
 name = "leaprs"
