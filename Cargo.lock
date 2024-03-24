@@ -2120,6 +2120,10 @@ dependencies = [
 [[package]]
 name = "hand_gestures"
 version = "0.1.0"
+dependencies = [
+ "bevy",
+ "ringbuf",
+]
 
 [[package]]
 name = "hands_tracking_workshop"

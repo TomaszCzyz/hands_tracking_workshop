@@ -7,30 +7,17 @@ use bevy::math::{Quat, Vec3};
 use bevy::pbr::{PbrBundle, StandardMaterial};
 use bevy::prelude::*;
 use leaprs::{Bone, Connection, ConnectionConfig, Digit, Event as LeapEvent, Hand, HandType};
-use ringbuf::{Rb, StaticRb};
-
-const HANDS_DATA_HISTORY_SIZE: usize = 30;
+use ringbuf::Rb;
 
 pub struct LeapInputPlugin;
 
-// Commit
-
 impl Plugin for LeapInputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<HandPinch>()
-            .insert_resource(HandsData::default())
-            .insert_resource(HandsDataHistory::default())
-            .insert_resource(PinchGestureInfo::default())
+        app.insert_resource(HandsData::default())
             .add_systems(Startup, create_connection)
             .add_systems(Startup, setup)
-            .add_systems(Update, (update_hand_data, detect_pinch_event).chain());
+            .add_systems(Update, update_hand_data);
     }
-}
-
-#[derive(Event, Debug, Clone)]
-pub struct HandPinch {
-    pub hand_type: HandType,
-    pub transform: Transform,
 }
 
 #[derive(Resource)]
@@ -38,27 +25,9 @@ pub struct HandsData {
     hands: [Option<HandData>; 2],
 }
 
-#[derive(Resource, Default)]
-pub struct PinchGestureInfo {
-    last_pinch_time: f32,
-}
-
 impl Default for HandsData {
     fn default() -> Self {
         Self { hands: [None, None] }
-    }
-}
-
-#[derive(Resource)]
-pub struct HandsDataHistory {
-    historical_data: StaticRb<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>,
-}
-
-impl Default for HandsDataHistory {
-    fn default() -> Self {
-        Self {
-            historical_data: StaticRb::<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>::default(),
-        }
     }
 }
 
@@ -189,67 +158,6 @@ fn update_hand_data(
                 }
             }
             _ => {}
-        }
-    }
-}
-
-enum Stage {
-    BeforePinch(usize),
-    Pinching(usize),
-    AfterPinch(usize),
-}
-
-/// Finding 'pinch gesture', by checking if hands history data contains
-/// sequence of pinch_strength values which starts and ends below threshold, but reaches
-/// threshold in between
-/// Example value for pinch gestures, threshold: 0.7 (newest -> oldest):
-/// [0.1, 0.1, 0.3, 0.5, 0.8, 0.7, 0.4, 0.2, 0.3, 0.2, 0.1]
-fn detect_pinch_event(
-    mut hand_pinch: EventWriter<HandPinch>,
-    hands_data_history: Res<HandsDataHistory>,
-    mut pinch_gesture_info: ResMut<PinchGestureInfo>,
-    time: Res<Time<Real>>,
-) {
-    // TODO: sampling should be based om time, not frames.
-    let hands_data_iter = hands_data_history
-        .historical_data
-        .iter()
-        .map(|x| x[0].as_ref())
-        .take_while(|x| x.is_some())
-        .map(|x| x.unwrap());
-
-    let threshold = 0.7;
-    let mut current_stage = Stage::BeforePinch(0);
-    for hand in hands_data_iter {
-        match current_stage {
-            Stage::BeforePinch(ref mut val) => {
-                if hand.pinch_strength < threshold {
-                    *val += 1;
-                } else if *val != 0 {
-                    current_stage = Stage::Pinching(0);
-                } else {
-                    return;
-                }
-            }
-            Stage::Pinching(ref mut val) => {
-                if hand.pinch_strength > threshold {
-                    *val += 1;
-                } else if *val != 0 {
-                    current_stage = Stage::AfterPinch(0);
-                } else {
-                    return;
-                }
-            }
-            Stage::AfterPinch(ref mut _val) => {
-                if pinch_gesture_info.last_pinch_time > time.elapsed_seconds() - PINCH_GESTURE_MIN_INTERVAL {
-                    return;
-                }
-                pinch_gesture_info.last_pinch_time = time.elapsed_seconds();
-                hand_pinch.send(HandPinch {
-                    hand_type: hand.type_,
-                    transform: hand.pinch_transform,
-                });
-            }
         }
     }
 }
