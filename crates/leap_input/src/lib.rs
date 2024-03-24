@@ -13,6 +13,8 @@ const HANDS_DATA_HISTORY_SIZE: usize = 30;
 
 pub struct LeapInputPlugin;
 
+// Commit
+
 impl Plugin for LeapInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<HandPinch>()
