@@ -1,5 +1,7 @@
 use bevy::math::Vec3;
 
+pub trait Gesture {}
+
 pub enum HandType {
     Left,
     Right,
@@ -20,5 +22,3 @@ pub struct HandData {
 
 /// Finger consist with 4 points: finger top, finger bottom and two joints in the middle.
 type Finger = [Vec3; 4];
-
-// Today commit

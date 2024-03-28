@@ -1,40 +1,21 @@
-use crate::models::{HandData, HandType};
-use bevy::app::{App, Plugin, Startup, Update};
 use bevy::prelude::{Event, EventWriter, Real, Res, ResMut, Resource, Time, Transform};
-use ringbuf::{Rb, StaticRb};
+use ringbuf::Rb;
+use crate::HandsData;
+
+use crate::models::{Gesture, HandType};
 
 struct GesturePlugin;
 
-const HANDS_DATA_HISTORY_SIZE: usize = 30;
 const PINCH_GESTURE_MIN_INTERVAL: f32 = 0.5;
-
-impl Plugin for GesturePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_event::<PinchGesture>()
-            // .insert_resource(HandsDataHistory::default())
-            .insert_resource(PinchGestureInfo::default())
-            .add_systems(Update, (detect_pinch_event));
-    }
-}
-
-trait Gesture {}
 // trait Gesture {
 //     /// Simple implementation can analyze all data every time.
 //     /// However, I should support detecting events based on incremental change
 //     fn has_occurred(&self, hands_data: &[HandsData]);
 // }
 
-#[derive(Resource)]
-pub struct HandsDataHistory {
-    historical_data: StaticRb<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>,
-}
-
-impl Default for HandsDataHistory {
-    fn default() -> Self {
-        Self {
-            historical_data: StaticRb::<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>::default(),
-        }
-    }
+#[derive(Resource, Default)]
+pub struct PinchGestureInfo {
+    last_pinch_time: f32,
 }
 
 #[derive(Event, Debug, Clone)]
@@ -45,34 +26,6 @@ pub struct PinchGesture {
 }
 
 impl Gesture for PinchGesture {}
-
-#[derive(Resource, Default)]
-pub struct PinchGestureInfo {
-    last_pinch_time: f32,
-}
-
-// TODO: check if there is abstraction for this
-type Timestamp = usize;
-
-struct GestureManager {
-    // TODO: bounded collection seems appropriate for this
-    gestures_timeline: Vec<Box<(dyn Gesture, Timestamp)>>,
-}
-
-impl GestureManager {
-    fn detect_gestures(&self) {
-        // TODO: it can be dene in parallel. Maybe each detection should be separate system?...
-        // but I think it will hinder more than help, as I want to keep track of gestures timeline
-        // so results synchronization it required, which will be more complicated for many systems
-
-        // for gesture in self.gestures_tracked {
-        //     if gesture.has_occured() {
-        //         // self.gestures_timeline.push(gesture, );
-        //         // do something, e.g. write event
-        //     }
-        // }
-    }
-}
 
 enum Stage {
     BeforePinch(usize),
@@ -85,10 +38,10 @@ enum Stage {
 /// threshold in between
 /// Example value for pinch gestures, threshold: 0.7 (newest -> oldest):
 /// [0.1, 0.1, 0.3, 0.5, 0.8, 0.7, 0.4, 0.2, 0.3, 0.2, 0.1]
-fn detect_pinch_event(
-    mut hand_pinch: EventWriter<PinchGesture>,
-    hands_data_history: Res<HandsDataHistory>,
+pub fn detect_pinch_event(
+    hands_data_history: Res<HandsData>,
     mut pinch_gesture_info: ResMut<PinchGestureInfo>,
+    mut hand_pinch: EventWriter<PinchGesture>,
     time: Res<Time<Real>>,
 ) {
     // TODO: sampling should be based om time, not frames.
