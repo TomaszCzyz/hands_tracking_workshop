@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use hand_gestures::pinch_gesture::PinchGesture;
 use hand_gestures::HandsData;
-use leap_input::leaprs::{Connection, Digit};
+use leap_input::leaprs::{Bone, Connection, Digit};
 use leap_input::{BoneComponent, LeapInputPlugin};
 use std::f32::consts::PI;
 
@@ -40,9 +40,9 @@ fn update_hand_data(
 ) {
     if let Ok(message) = leap_conn.poll(50) {
         match &message.event() {
-            LeapEvent::Connection(_) => println!("connection event"),
-            LeapEvent::Device(_) => println!("device event"),
-            LeapEvent::Tracking(e) => {
+            Event::Connection(_) => println!("connection event"),
+            Event::Device(_) => println!("device event"),
+            Event::Tracking(e) => {
                 let mut query_iter = digits_query.iter_mut();
 
                 let hand1 = e.hands().get(0).and_then(|hand| Some(hand.into()));
