@@ -39,13 +39,13 @@ enum Stage {
 /// Example value for pinch gestures, threshold: 0.7 (newest -> oldest):
 /// [0.1, 0.1, 0.3, 0.5, 0.8, 0.7, 0.4, 0.2, 0.3, 0.2, 0.1]
 pub fn detect_pinch_event(
-    hands_data_history: Res<HandsData>,
+    hands_data: Res<HandsData>,
     mut pinch_gesture_info: ResMut<PinchGestureInfo>,
     mut hand_pinch: EventWriter<PinchGesture>,
     time: Res<Time<Real>>,
 ) {
     // TODO: sampling should be based om time, not frames.
-    let hands_data_iter = hands_data_history
+    let hands_data_iter = hands_data
         .historical_data
         .iter()
         .map(|x| x[0].as_ref())
@@ -55,35 +55,38 @@ pub fn detect_pinch_event(
     let threshold = 0.7;
     let mut current_stage = Stage::BeforePinch(0);
     for hand in hands_data_iter {
-        match current_stage {
-            Stage::BeforePinch(ref mut val) => {
-                if hand.pinch_strength < threshold {
-                    *val += 1;
-                } else if *val != 0 {
-                    current_stage = Stage::Pinching(0);
-                } else {
-                    return;
-                }
-            }
-            Stage::Pinching(ref mut val) => {
-                if hand.pinch_strength > threshold {
-                    *val += 1;
-                } else if *val != 0 {
-                    current_stage = Stage::AfterPinch(0);
-                } else {
-                    return;
-                }
-            }
-            Stage::AfterPinch(ref mut _val) => {
-                if pinch_gesture_info.last_pinch_time > time.elapsed_seconds() - PINCH_GESTURE_MIN_INTERVAL {
-                    return;
-                }
-                pinch_gesture_info.last_pinch_time = time.elapsed_seconds();
-                hand_pinch.send(PinchGesture {
-                    hand_type: hand.type_,
-                    transform: hand.pinch_transform,
-                });
-            }
-        }
+        const pinch_strength = hand.index[0].distance(hand.thumb[0]);
+
+        println!("pinch stregth: {pinch_strength}");
+        // match current_stage {
+        //     Stage::BeforePinch(ref mut val) => {
+        //         if hand.pinch_strength < threshold {
+        //             *val += 1;
+        //         } else if *val != 0 {
+        //             current_stage = Stage::Pinching(0);
+        //         } else {
+        //             return;
+        //         }
+        //     }
+        //     Stage::Pinching(ref mut val) => {
+        //         if hand.pinch_strength > threshold {
+        //             *val += 1;
+        //         } else if *val != 0 {
+        //             current_stage = Stage::AfterPinch(0);
+        //         } else {
+        //             return;
+        //         }
+        //     }
+        //     Stage::AfterPinch(ref mut _val) => {
+        //         if pinch_gesture_info.last_pinch_time > time.elapsed_seconds() - PINCH_GESTURE_MIN_INTERVAL {
+        //             return;
+        //         }
+        //         pinch_gesture_info.last_pinch_time = time.elapsed_seconds();
+        //         hand_pinch.send(PinchGesture {
+        //             hand_type: hand.type_,
+        //             transform: hand.pinch_transform,
+        //         });
+        //     }
+        // }
     }
 }

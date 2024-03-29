@@ -22,7 +22,7 @@ impl Plugin for GesturePlugin {
 
 #[derive(Resource)]
 pub struct HandsData {
-    historical_data: StaticRb<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>,
+    pub historical_data: StaticRb<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>,
 }
 
 impl Default for HandsData {

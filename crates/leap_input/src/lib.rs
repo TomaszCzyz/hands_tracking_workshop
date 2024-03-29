@@ -1,13 +1,13 @@
-use std::f32::consts::PI;
+pub extern crate leaprs;
 
-use bevy::app::{App, Plugin, Startup, Update};
+use bevy::app::{App, Plugin, Startup};
 use bevy::asset::Assets;
 use bevy::hierarchy::BuildChildren;
-use bevy::math::{Quat, Vec3};
+use bevy::math::Vec3;
 use bevy::pbr::{PbrBundle, StandardMaterial};
 use bevy::prelude::*;
-use leaprs::{Bone, Connection, ConnectionConfig, Digit, Event as LeapEvent, Hand, HandType};
-use ringbuf::Rb;
+use leaprs::{Connection, ConnectionConfig, Hand, HandType};
+
 
 pub struct LeapInputPlugin;
 
@@ -15,8 +15,7 @@ impl Plugin for LeapInputPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(HandsData::default())
             .add_systems(Startup, create_connection)
-            .add_systems(Startup, setup)
-            .add_systems(Update, update_hand_data);
+            .add_systems(Startup, setup);
     }
 }
 
@@ -115,58 +114,4 @@ fn create_connection(world: &mut World) {
     connection.open().expect("Failed to open the connection");
 
     world.insert_non_send_resource(connection);
-}
-
-fn update_hand_data(
-    mut leap_conn: NonSendMut<Connection>,
-    mut digits_query: Query<(&mut Transform, &mut Visibility), With<BoneComponent>>,
-    mut hands_res: ResMut<HandsData>,
-    mut hands_history_res: ResMut<HandsDataHistory>,
-) {
-    if let Ok(message) = leap_conn.poll(50) {
-        match &message.event() {
-            LeapEvent::Connection(_) => println!("connection event"),
-            LeapEvent::Device(_) => println!("device event"),
-            LeapEvent::Tracking(e) => {
-                let mut query_iter = digits_query.iter_mut();
-
-                hands_res.hands[0] = e.hands().get(0).and_then(|hand| Some(hand.into()));
-                hands_res.hands[1] = e.hands().get(1).and_then(|hand| Some(hand.into()));
-
-                hands_history_res
-                    .historical_data
-                    .push_overwrite([hands_res.hands[0].clone(), hands_res.hands[1].clone()]);
-
-                for hand in e.hands().iter() {
-                    for digit in hand.digits().iter() {
-                        for bone in get_bones(digit) {
-                            let (mut transform, mut visibility) = query_iter.next().unwrap();
-
-                            *transform = Transform {
-                                translation: Vec3::from_array(bone.prev_joint().array()),
-                                rotation: Quat::from_array(bone.rotation().array()) * Quat::from_rotation_x(PI / 2.),
-                                ..default()
-                            };
-                            *visibility = Visibility::Visible;
-                        }
-                    }
-                }
-
-                // hide elements if hand data is unavailable
-                while let Some((_, mut visibility)) = query_iter.next() {
-                    *visibility = Visibility::Hidden;
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
-    [
-        digit.distal(),
-        digit.proximal(),
-        digit.intermediate(),
-        digit.metacarpal(),
-    ]
 }

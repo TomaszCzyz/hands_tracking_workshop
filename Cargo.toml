@@ -15,5 +15,7 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
+leap_input = { path = "crates/leap_input", version = "0.1.0" }
+hand_gestures = { path = "crates/hand_gestures", version = "0.1.0" }
 bevy = { version = "0.13.0", features = ["dynamic_linking"] }
 bevy-inspector-egui = "0.23.3"

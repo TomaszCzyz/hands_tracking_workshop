@@ -1,12 +1,15 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use hand_gestures::pinch_gesture::PinchGesture;
+use hand_gestures::HandsData;
+use leap_input::leaprs::{Connection, Digit};
+use leap_input::{BoneComponent, LeapInputPlugin};
+use std::f32::consts::PI;
 
-use crate::leap_input::{HandPinch, LeapInputPlugin};
 use crate::lines::{LineList, LineMaterial};
 use crate::scene::ScenePlugin;
 use crate::utils::find_two_largest;
 
-mod leap_input;
 mod lines;
 mod scene;
 mod utils;
@@ -23,19 +26,72 @@ fn main() {
             ScenePlugin,
         ))
         .insert_resource(ClearColor(Color::SEA_GREEN))
-        .add_systems(Update, spawn_on_pinch)
+        .add_systems(Update, (spawn_on_pinch, update_hand_data))
         .run();
 }
 
 #[derive(Component, Eq, PartialEq, Ord, PartialOrd)]
 struct NewShapePoint(usize);
 
+fn update_hand_data(
+    mut leap_conn: NonSendMut<Connection>,
+    mut digits_query: Query<(&mut Transform, &mut Visibility), With<BoneComponent>>,
+    mut hands_history_res: ResMut<HandsData>,
+) {
+    if let Ok(message) = leap_conn.poll(50) {
+        match &message.event() {
+            LeapEvent::Connection(_) => println!("connection event"),
+            LeapEvent::Device(_) => println!("device event"),
+            LeapEvent::Tracking(e) => {
+                let mut query_iter = digits_query.iter_mut();
+
+                let hand1 = e.hands().get(0).and_then(|hand| Some(hand.into()));
+                let hand2 = e.hands().get(1).and_then(|hand| Some(hand.into()));
+
+                hands_history_res
+                    .historical_data
+                    .push_overwrite([hand1.clone(), hand2.hands[1].clone()]);
+
+                for hand in e.hands().iter() {
+                    for digit in hand.digits().iter() {
+                        for bone in get_bones(digit) {
+                            let (mut transform, mut visibility) = query_iter.next().unwrap();
+
+                            *transform = Transform {
+                                translation: Vec3::from_array(bone.prev_joint().array()),
+                                rotation: Quat::from_array(bone.rotation().array()) * Quat::from_rotation_x(PI / 2.),
+                                ..default()
+                            };
+                            *visibility = Visibility::Visible;
+                        }
+                    }
+                }
+
+                // hide elements if hand data is unavailable
+                while let Some((_, mut visibility)) = query_iter.next() {
+                    *visibility = Visibility::Hidden;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
+    [
+        digit.distal(),
+        digit.proximal(),
+        digit.intermediate(),
+        digit.metacarpal(),
+    ]
+}
+
 fn spawn_on_pinch(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut line_materials: ResMut<Assets<LineMaterial>>,
-    mut right_pinch_events: EventReader<HandPinch>,
+    mut right_pinch_events: EventReader<PinchGesture>,
     new_shape_points: Query<(&Transform, &NewShapePoint)>,
 ) {
     let number_of_points = new_shape_points.iter().len();
