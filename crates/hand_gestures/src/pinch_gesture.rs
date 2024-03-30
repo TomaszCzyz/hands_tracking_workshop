@@ -55,7 +55,7 @@ pub fn detect_pinch_event(
     let threshold = 0.7;
     let mut current_stage = Stage::BeforePinch(0);
     for hand in hands_data_iter {
-        const pinch_strength = hand.index[0].distance(hand.thumb[0]);
+        let pinch_strength = hand.index[0].distance(hand.thumb[0]);
 
         println!("pinch stregth: {pinch_strength}");
         // match current_stage {

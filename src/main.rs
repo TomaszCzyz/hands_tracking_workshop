@@ -1,10 +1,13 @@
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+
+use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
-use hand_gestures::HandsData;
-use leap_input::leaprs::{Bone, Connection, Digit};
+use hand_gestures::{GesturePlugin, HandsData};
+use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
 use leap_input::{BoneComponent, LeapInputPlugin};
-use std::f32::consts::PI;
 
 use crate::lines::{LineList, LineMaterial};
 use crate::scene::ScenePlugin;
@@ -23,6 +26,7 @@ fn main() {
             WorldInspectorPlugin::new(),
             MaterialPlugin::<LineMaterial>::default(),
             LeapInputPlugin,
+            GesturePlugin,
             ScenePlugin,
         ))
         .insert_resource(ClearColor(Color::SEA_GREEN))
@@ -33,6 +37,41 @@ fn main() {
 #[derive(Component, Eq, PartialEq, Ord, PartialOrd)]
 struct NewShapePoint(usize);
 
+fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
+    HandData {
+        type_: match leap_hand.hand_type() {
+            LeapHandType::Left => HandType::Left,
+            LeapHandType::Right => HandType::Right,
+        },
+        confidence: leap_hand.confidence(),
+        thumb: get_simplified_finger(leap_hand.thumb()),
+        index: get_simplified_finger(leap_hand.index()),
+        middle: get_simplified_finger(leap_hand.middle()),
+        ring: get_simplified_finger(leap_hand.ring()),
+        pinky: get_simplified_finger(leap_hand.pinky()),
+    }
+}
+
+fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
+    [
+        digit.distal(),
+        digit.proximal(),
+        digit.intermediate(),
+        digit.metacarpal(),
+    ]
+}
+
+fn get_simplified_finger(digit: Digit) -> Finger {
+    let bones = get_bones(&digit);
+    [
+        Vec3::from_array(bones[0].next_joint().array()),
+        Vec3::from_array(bones[0].prev_joint().array()),
+        Vec3::from_array(bones[1].prev_joint().array()),
+        Vec3::from_array(bones[2].prev_joint().array()),
+        Vec3::from_array(bones[3].prev_joint().array()),
+    ]
+}
+
 fn update_hand_data(
     mut leap_conn: NonSendMut<Connection>,
     mut digits_query: Query<(&mut Transform, &mut Visibility), With<BoneComponent>>,
@@ -40,17 +79,17 @@ fn update_hand_data(
 ) {
     if let Ok(message) = leap_conn.poll(50) {
         match &message.event() {
-            Event::Connection(_) => println!("connection event"),
-            Event::Device(_) => println!("device event"),
-            Event::Tracking(e) => {
+            LeapEvent::Connection(_) => println!("connection event"),
+            LeapEvent::Device(_) => println!("device event"),
+            LeapEvent::Tracking(e) => {
                 let mut query_iter = digits_query.iter_mut();
 
-                let hand1 = e.hands().get(0).and_then(|hand| Some(hand.into()));
-                let hand2 = e.hands().get(1).and_then(|hand| Some(hand.into()));
+                let hand1 = e.hands().get(0).and_then(|hand| Some(map_from_leap_hand(hand)));
+                let hand2 = e.hands().get(1).and_then(|hand| Some(map_from_leap_hand(hand)));
 
                 hands_history_res
-                    .historical_data
-                    .push_overwrite([hand1.clone(), hand2.hands[1].clone()]);
+                    // .historical_data
+                    .push_overwrite([hand1.clone(), hand2.clone()]);
 
                 for hand in e.hands().iter() {
                     for digit in hand.digits().iter() {
@@ -75,15 +114,6 @@ fn update_hand_data(
             _ => {}
         }
     }
-}
-
-fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
-    [
-        digit.distal(),
-        digit.proximal(),
-        digit.intermediate(),
-        digit.metacarpal(),
-    ]
 }
 
 fn spawn_on_pinch(

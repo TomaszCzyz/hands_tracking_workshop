@@ -2,14 +2,14 @@ use crate::models::{Gesture, HandData};
 use crate::pinch_gesture::{detect_pinch_event, PinchGesture, PinchGestureInfo};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::Resource;
-use ringbuf::StaticRb;
+use ringbuf::{Rb, StaticRb};
 
 pub mod models;
 pub mod pinch_gesture;
 
 const HANDS_DATA_HISTORY_SIZE: usize = 30;
 
-struct GesturePlugin;
+pub struct GesturePlugin;
 
 impl Plugin for GesturePlugin {
     fn build(&self, app: &mut App) {
@@ -23,6 +23,12 @@ impl Plugin for GesturePlugin {
 #[derive(Resource)]
 pub struct HandsData {
     pub historical_data: StaticRb<[Option<HandData>; 2], HANDS_DATA_HISTORY_SIZE>,
+}
+
+impl HandsData {
+    pub fn push_overwrite(&mut self, elem: [Option<HandData>; 2]) -> Option<[Option<HandData>; 2]> {
+        self.historical_data.push_overwrite(elem)
+    }
 }
 
 impl Default for HandsData {
