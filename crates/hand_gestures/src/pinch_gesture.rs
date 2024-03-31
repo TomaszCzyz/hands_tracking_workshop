@@ -1,4 +1,5 @@
 use crate::HandsData;
+use bevy::math::Vec3;
 use bevy::prelude::{Event, EventWriter, Real, Res, ResMut, Resource, Time, Transform};
 use ringbuf::Rb;
 
@@ -84,7 +85,9 @@ pub fn detect_pinch_event(
                 }
                 pinch_gesture_info.last_pinch_time = time.elapsed_seconds();
 
-                let pinch_transform = hand.index[0].lerp(hand.thumb[0], 0.5);
+                let middle_point = hand.index[0].lerp(hand.thumb[0], 0.5);
+                let pinch_transform = Transform::from_translation(middle_point).looking_at(hand.index[0], Vec3::Y);
+
                 hand_pinch.send(PinchGesture {
                     hand_type: hand.type_,
                     transform: pinch_transform,
