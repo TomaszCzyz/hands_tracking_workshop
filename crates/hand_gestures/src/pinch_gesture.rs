@@ -1,6 +1,6 @@
+use crate::HandsData;
 use bevy::prelude::{Event, EventWriter, Real, Res, ResMut, Resource, Time, Transform};
 use ringbuf::Rb;
-use crate::HandsData;
 
 use crate::models::{Gesture, HandType};
 
@@ -56,37 +56,40 @@ pub fn detect_pinch_event(
     let mut current_stage = Stage::BeforePinch(0);
     for hand in hands_data_iter {
         let pinch_strength = hand.index[0].distance(hand.thumb[0]);
+        // 15.0 - 70.0
+        let normalized_pinch_strength = (1.0 - (pinch_strength - 15.0) / 70.0).clamp(0.0, 1.0);
+        println!("pinch stregth: {normalized_pinch_strength}");
+        match current_stage {
+            Stage::BeforePinch(ref mut val) => {
+                if normalized_pinch_strength < threshold {
+                    *val += 1;
+                } else if *val != 0 {
+                    current_stage = Stage::Pinching(0);
+                } else {
+                    return;
+                }
+            }
+            Stage::Pinching(ref mut val) => {
+                if normalized_pinch_strength > threshold {
+                    *val += 1;
+                } else if *val != 0 {
+                    current_stage = Stage::AfterPinch(0);
+                } else {
+                    return;
+                }
+            }
+            Stage::AfterPinch(ref mut _val) => {
+                if pinch_gesture_info.last_pinch_time > time.elapsed_seconds() - PINCH_GESTURE_MIN_INTERVAL {
+                    return;
+                }
+                pinch_gesture_info.last_pinch_time = time.elapsed_seconds();
 
-        println!("pinch stregth: {pinch_strength}");
-        // match current_stage {
-        //     Stage::BeforePinch(ref mut val) => {
-        //         if hand.pinch_strength < threshold {
-        //             *val += 1;
-        //         } else if *val != 0 {
-        //             current_stage = Stage::Pinching(0);
-        //         } else {
-        //             return;
-        //         }
-        //     }
-        //     Stage::Pinching(ref mut val) => {
-        //         if hand.pinch_strength > threshold {
-        //             *val += 1;
-        //         } else if *val != 0 {
-        //             current_stage = Stage::AfterPinch(0);
-        //         } else {
-        //             return;
-        //         }
-        //     }
-        //     Stage::AfterPinch(ref mut _val) => {
-        //         if pinch_gesture_info.last_pinch_time > time.elapsed_seconds() - PINCH_GESTURE_MIN_INTERVAL {
-        //             return;
-        //         }
-        //         pinch_gesture_info.last_pinch_time = time.elapsed_seconds();
-        //         hand_pinch.send(PinchGesture {
-        //             hand_type: hand.type_,
-        //             transform: hand.pinch_transform,
-        //         });
-        //     }
-        // }
+                let pinch_transform = hand.index[0].lerp(hand.thumb[0], 0.5);
+                hand_pinch.send(PinchGesture {
+                    hand_type: hand.type_,
+                    transform: pinch_transform,
+                });
+            }
+        }
     }
 }
