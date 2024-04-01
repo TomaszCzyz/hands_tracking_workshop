@@ -8,6 +8,10 @@ use crate::models::{Gesture, HandType};
 struct GesturePlugin;
 
 const PINCH_GESTURE_MIN_INTERVAL: f32 = 0.5;
+// TODO: make this input agnostic; these values come are related to LeapC
+const MIN_PINCH_DISTANCE: f32 = 15.0;
+const MAX_PINCH_DISTANCE: f32 = 70.0;
+
 // trait Gesture {
 //     /// Simple implementation can analyze all data every time.
 //     /// However, I should support detecting events based on incremental change
@@ -57,9 +61,9 @@ pub fn detect_pinch_event(
     let mut current_stage = Stage::BeforePinch(0);
     for hand in hands_data_iter {
         let pinch_strength = hand.index[0].distance(hand.thumb[0]);
-        // 15.0 - 70.0
-        let normalized_pinch_strength = (1.0 - (pinch_strength - 15.0) / 70.0).clamp(0.0, 1.0);
-        println!("pinch stregth: {normalized_pinch_strength}");
+        let normalized_pinch_strength =
+            (1.0 - (pinch_strength - MIN_PINCH_DISTANCE) / MAX_PINCH_DISTANCE).clamp(0.0, 1.0);
+
         match current_stage {
             Stage::BeforePinch(ref mut val) => {
                 if normalized_pinch_strength < threshold {
