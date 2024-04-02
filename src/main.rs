@@ -30,12 +30,16 @@ fn main() {
             ScenePlugin,
         ))
         .insert_resource(ClearColor(Color::SEA_GREEN))
-        .add_systems(Update, (spawn_on_pinch, update_hand_data))
+        .add_systems(Update, update_hand_data)
+        .add_systems(Update, (spawn_sphere_on_pinch, spawn_line_on_pinch).chain())
         .run();
 }
 
 #[derive(Component, Eq, PartialEq, Ord, PartialOrd)]
 struct NewShapePoint(usize);
+
+#[derive(Component, Eq, PartialEq, Ord, PartialOrd)]
+struct NewShapeLine(usize, usize);
 
 fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
     HandData {
@@ -87,9 +91,7 @@ fn update_hand_data(
                 let hand1 = e.hands().get(0).and_then(|hand| Some(map_from_leap_hand(hand)));
                 let hand2 = e.hands().get(1).and_then(|hand| Some(map_from_leap_hand(hand)));
 
-                hands_history_res
-                    // .historical_data
-                    .push_overwrite([hand1.clone(), hand2.clone()]);
+                hands_history_res.push_overwrite([hand1.clone(), hand2.clone()]);
 
                 for hand in e.hands().iter() {
                     for digit in hand.digits().iter() {
@@ -116,11 +118,10 @@ fn update_hand_data(
     }
 }
 
-fn spawn_on_pinch(
+fn spawn_sphere_on_pinch(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut line_materials: ResMut<Assets<LineMaterial>>,
     mut right_pinch_events: EventReader<PinchGesture>,
     new_shape_points: Query<(&Transform, &NewShapePoint)>,
 ) {
@@ -151,16 +152,31 @@ fn spawn_on_pinch(
             },
             NewShapePoint(number_of_points),
         ));
+    }
+}
 
-        if number_of_points > 1 {
-            let (largest, second_largest) = find_two_largest(new_shape_points.iter(), |&(_, p)| p);
-            commands.spawn((MaterialMeshBundle {
+fn spawn_line_on_pinch(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut line_materials: ResMut<Assets<LineMaterial>>,
+    new_shape_points: Query<(&Transform, &NewShapePoint)>,
+    new_shape_lines: Query<&NewShapeLine>,
+) {
+    let number_of_points = new_shape_points.iter().len();
+    let number_of_lines = new_shape_lines.iter().len();
+
+    if number_of_points > 1 && number_of_lines < number_of_points - 1 {
+        println!("here");
+        let (largest, second_largest) = find_two_largest(new_shape_points.iter(), |&(_, p)| p);
+        commands.spawn((
+            MaterialMeshBundle {
                 mesh: meshes.add(LineList {
                     lines: vec![(largest.0.translation, second_largest.0.translation)],
                 }),
                 material: line_materials.add(LineMaterial { color: Color::GREEN }),
                 ..default()
-            },));
-        }
+            },
+            NewShapeLine(number_of_points - 1, number_of_points),
+        ));
     }
 }

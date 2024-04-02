@@ -5,18 +5,10 @@ use ringbuf::Rb;
 
 use crate::models::{Gesture, HandType};
 
-struct GesturePlugin;
-
 const PINCH_GESTURE_MIN_INTERVAL: f32 = 0.5;
 // TODO: make this input agnostic; these values come are related to LeapC
 const MIN_PINCH_DISTANCE: f32 = 15.0;
 const MAX_PINCH_DISTANCE: f32 = 70.0;
-
-// trait Gesture {
-//     /// Simple implementation can analyze all data every time.
-//     /// However, I should support detecting events based on incremental change
-//     fn has_occurred(&self, hands_data: &[HandsData]);
-// }
 
 #[derive(Resource, Default)]
 pub struct PinchGestureInfo {
