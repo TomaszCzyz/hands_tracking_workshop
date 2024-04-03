@@ -93,17 +93,21 @@ fn update_hand_data(
 
                 hands_history_res.push_overwrite([hand1.clone(), hand2.clone()]);
 
+                // TODO: move it to leap_input
                 for hand in e.hands().iter() {
                     for digit in hand.digits().iter() {
                         for bone in get_bones(digit) {
-                            let (mut transform, mut visibility) = query_iter.next().unwrap();
+                            for bone_joint in [bone.prev_joint(), bone.next_joint()] {
+                                let (mut transform, mut visibility) = query_iter.next().unwrap();
 
-                            *transform = Transform {
-                                translation: Vec3::from_array(bone.prev_joint().array()),
-                                rotation: Quat::from_array(bone.rotation().array()) * Quat::from_rotation_x(PI / 2.),
-                                ..default()
-                            };
-                            *visibility = Visibility::Visible;
+                                *transform = Transform {
+                                    translation: Vec3::from_array(bone_joint.array()),
+                                    rotation: Quat::from_array(bone.rotation().array())
+                                        * Quat::from_rotation_x(PI / 2.),
+                                    ..default()
+                                };
+                                *visibility = Visibility::Visible;
+                            }
                         }
                     }
                 }

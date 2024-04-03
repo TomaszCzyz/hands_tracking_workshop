@@ -13,7 +13,7 @@ impl Plugin for LeapInputPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(HandsData::default())
             .add_systems(Startup, create_connection)
-            .add_systems(Startup, setup);
+            .add_systems(Startup, setup_new);
     }
 }
 
@@ -87,6 +87,30 @@ fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials
                 parent.spawn((
                     PbrBundle {
                         mesh: meshes.add(capsule),
+                        visibility: Visibility::Visible,
+                        material: debug_material.clone(),
+                        ..default()
+                    },
+                    BoneComponent,
+                ));
+            }
+        });
+}
+
+fn setup_new(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let debug_material = materials.add(StandardMaterial { ..default() });
+
+    commands
+        .spawn((SpatialBundle::default(), HandsOrigin))
+        .with_children(|parent| {
+            for _ in 0..80 {
+                parent.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(Sphere::default().mesh().uv(32, 18).scaled_by(Vec3::splat(5f32))),
                         visibility: Visibility::Visible,
                         material: debug_material.clone(),
                         ..default()
