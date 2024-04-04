@@ -7,7 +7,7 @@ use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
 use hand_gestures::{GesturePlugin, HandsData};
 use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
-use leap_input::{BoneComponent, LeapInputPlugin};
+use leap_input::{HandJoint, HandPhalange, LeapInputPlugin};
 
 use crate::lines::{LineList, LineMaterial};
 use crate::scene::ScenePlugin;
@@ -78,7 +78,8 @@ fn get_simplified_finger(digit: Digit) -> Finger {
 
 fn update_hand_data(
     mut leap_conn: NonSendMut<Connection>,
-    mut digits_query: Query<(&mut Transform, &mut Visibility), With<BoneComponent>>,
+    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<HandJoint>, Without<HandPhalange>)>,
+    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandPhalange>, Without<HandJoint>)>,
     mut hands_history_res: ResMut<HandsData>,
 ) {
     if let Ok(message) = leap_conn.poll(50) {
@@ -86,7 +87,8 @@ fn update_hand_data(
             LeapEvent::Connection(_) => println!("connection event"),
             LeapEvent::Device(_) => println!("device event"),
             LeapEvent::Tracking(e) => {
-                let mut query_iter = digits_query.iter_mut();
+                let mut joints_query_iter = joints_query.iter_mut();
+                let mut phalanges_query_iter = phalanges_query.iter_mut();
 
                 let hand1 = e.hands().get(0).and_then(|hand| Some(map_from_leap_hand(hand)));
                 let hand2 = e.hands().get(1).and_then(|hand| Some(map_from_leap_hand(hand)));
@@ -98,7 +100,7 @@ fn update_hand_data(
                     for digit in hand.digits().iter() {
                         for bone in get_bones(digit) {
                             for bone_joint in [bone.prev_joint(), bone.next_joint()] {
-                                let (mut transform, mut visibility) = query_iter.next().unwrap();
+                                let (mut transform, mut visibility) = joints_query_iter.next().unwrap();
 
                                 *transform = Transform {
                                     translation: Vec3::from_array(bone_joint.array()),
@@ -108,12 +110,28 @@ fn update_hand_data(
                                 };
                                 *visibility = Visibility::Visible;
                             }
+
+                            let (mut transform, mut visibility) = phalanges_query_iter.next().unwrap();
+
+                            let prev_joint = Vec3::from_array(bone.prev_joint().array());
+                            let next_joint = Vec3::from_array(bone.next_joint().array());
+                            let middle_point = prev_joint.lerp(next_joint, 0.5);
+
+                            *transform = Transform {
+                                translation: middle_point,
+                                rotation: Quat::from_array(bone.rotation().array()) * Quat::from_rotation_x(PI / 2.),
+                                ..default()
+                            };
+                            *visibility = Visibility::Visible;
                         }
                     }
                 }
 
                 // hide elements if hand data is unavailable
-                while let Some((_, mut visibility)) = query_iter.next() {
+                while let Some((_, mut visibility)) = joints_query_iter.next() {
+                    *visibility = Visibility::Hidden;
+                }
+                while let Some((_, mut visibility)) = phalanges_query_iter.next() {
                     *visibility = Visibility::Hidden;
                 }
             }
@@ -170,7 +188,6 @@ fn spawn_line_on_pinch(
     let number_of_lines = new_shape_lines.iter().len();
 
     if number_of_points > 1 && number_of_lines < number_of_points - 1 {
-        println!("here");
         let (largest, second_largest) = find_two_largest(new_shape_points.iter(), |&(_, p)| p);
         commands.spawn((
             MaterialMeshBundle {

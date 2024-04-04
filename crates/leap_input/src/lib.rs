@@ -76,6 +76,12 @@ pub struct HandsOrigin;
 #[derive(Component)]
 pub struct BoneComponent;
 
+#[derive(Component)]
+pub struct HandJoint;
+
+#[derive(Component)]
+pub struct HandPhalange;
+
 fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
     let debug_material = materials.add(StandardMaterial { ..default() });
     let capsule = Capsule3d::new(7., 25.);
@@ -110,12 +116,25 @@ fn setup_new(
             for _ in 0..80 {
                 parent.spawn((
                     PbrBundle {
-                        mesh: meshes.add(Sphere::default().mesh().uv(32, 18).scaled_by(Vec3::splat(5f32))),
+                        mesh: meshes.add(Sphere::default().mesh().uv(32, 18).scaled_by(Vec3::splat(8f32))),
                         visibility: Visibility::Visible,
                         material: debug_material.clone(),
                         ..default()
                     },
                     BoneComponent,
+                    HandJoint,
+                ));
+            }
+            for _ in 0..40 {
+                parent.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(Cylinder::new(3f32, 15f32)),
+                        visibility: Visibility::Visible,
+                        material: debug_material.clone(),
+                        ..default()
+                    },
+                    BoneComponent,
+                    HandPhalange,
                 ));
             }
         });
