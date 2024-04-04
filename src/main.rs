@@ -117,9 +117,13 @@ fn update_hand_data(
                             let next_joint = Vec3::from_array(bone.next_joint().array());
                             let middle_point = prev_joint.lerp(next_joint, 0.5);
 
+                            let joints_distance = prev_joint.distance(next_joint);
+                            let scale = joints_distance / 15f32 * 0.6;
+
                             *transform = Transform {
                                 translation: middle_point,
                                 rotation: Quat::from_array(bone.rotation().array()) * Quat::from_rotation_x(PI / 2.),
+                                scale: Vec3::new(1f32, scale, 1f32),
                                 ..default()
                             };
                             *visibility = Visibility::Visible;
