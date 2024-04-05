@@ -6,6 +6,7 @@ use ringbuf::{Rb, StaticRb};
 
 pub mod models;
 pub mod pinch_gesture;
+pub mod flick_gesture;
 
 const HANDS_DATA_HISTORY_SIZE: usize = 30;
 
