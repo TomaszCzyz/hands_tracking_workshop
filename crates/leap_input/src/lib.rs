@@ -13,7 +13,7 @@ impl Plugin for LeapInputPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(HandsData::default())
             .add_systems(Startup, create_connection)
-            .add_systems(Startup, setup_new);
+            .add_systems(Startup, setup);
     }
 }
 
@@ -82,28 +82,7 @@ pub struct HandJoint;
 #[derive(Component)]
 pub struct HandPhalange;
 
-fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
-    let debug_material = materials.add(StandardMaterial { ..default() });
-    let capsule = Capsule3d::new(7., 25.);
-
-    commands
-        .spawn((SpatialBundle::default(), HandsOrigin))
-        .with_children(|parent| {
-            for _ in 0..40 {
-                parent.spawn((
-                    PbrBundle {
-                        mesh: meshes.add(capsule),
-                        visibility: Visibility::Visible,
-                        material: debug_material.clone(),
-                        ..default()
-                    },
-                    BoneComponent,
-                ));
-            }
-        });
-}
-
-fn setup_new(
+fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,

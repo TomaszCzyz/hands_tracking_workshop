@@ -118,6 +118,7 @@ fn update_hand_data(
                             let middle_point = prev_joint.lerp(next_joint, 0.5);
 
                             let joints_distance = prev_joint.distance(next_joint);
+                            // TODO: remove magick number 15f32 (height of phalanges cylinder)
                             let scale = joints_distance / 15f32 * 0.6;
 
                             *transform = Transform {
