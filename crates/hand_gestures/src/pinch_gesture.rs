@@ -41,17 +41,12 @@ pub fn detect_pinch_event(
     mut hand_pinch: EventWriter<PinchGesture>,
     time: Res<Time<Real>>,
 ) {
-    // TODO: sampling should be based om time, not frames.
-    let hands_data_iter = hands_data
-        .historical_data
-        .iter()
-        .map(|x| x[0].as_ref())
-        .take_while(|x| x.is_some())
-        .map(|x| x.unwrap());
+    // TODO: consider if sampling should be based on time or frames.
+    let (first_hand_iter, second_hand_iter) = hands_data.get_iters();
 
     let threshold = 0.7;
     let mut current_stage = Stage::BeforePinch(0);
-    for hand in hands_data_iter {
+    for hand in first_hand_iter {
         let pinch_strength = hand.index[0].distance(hand.thumb[0]);
         let normalized_pinch_strength =
             (1.0 - (pinch_strength - MIN_PINCH_DISTANCE) / MAX_PINCH_DISTANCE).clamp(0.0, 1.0);
