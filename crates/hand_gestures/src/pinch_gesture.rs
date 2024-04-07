@@ -1,7 +1,6 @@
 use crate::HandsData;
 use bevy::math::Vec3;
 use bevy::prelude::{Event, EventWriter, Real, Res, ResMut, Resource, Time, Transform};
-use ringbuf::Rb;
 
 use crate::models::{Gesture, HandType};
 
