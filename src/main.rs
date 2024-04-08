@@ -1,13 +1,15 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
+use bevy::window::{PresentMode, WindowTheme};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
 
+use hand_gestures::{GesturePlugin, HandsData};
 use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
-use hand_gestures::{GesturePlugin, HandsData};
-use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
 use leap_input::{HandJoint, HandPhalange, LeapInputPlugin};
+use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
 
 use crate::lines::{LineList, LineMaterial};
 use crate::scene::ScenePlugin;
@@ -22,14 +24,29 @@ pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 400., 400.);
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "I am a window!".into(),
+                    name: Some("bevy.app".into()),
+                    present_mode: PresentMode::Immediate,
+                    window_theme: Some(WindowTheme::Dark),
+                    ..default()
+                }),
+                ..default()
+            }),
             WorldInspectorPlugin::new(),
+            bevy::diagnostic::FrameTimeDiagnosticsPlugin,
+            bevy::diagnostic::EntityCountDiagnosticsPlugin,
+            bevy::diagnostic::SystemInformationDiagnosticsPlugin,
+            // LogDiagnosticsPlugin::default(),
+            PerfUiPlugin,
             MaterialPlugin::<LineMaterial>::default(),
             LeapInputPlugin,
             GesturePlugin,
             ScenePlugin,
         ))
         .insert_resource(ClearColor(Color::SEA_GREEN))
+        .add_systems(Startup, setup_diagnostics)
         .add_systems(Update, update_hand_data)
         .add_systems(Update, (spawn_sphere_on_pinch, spawn_line_on_pinch).chain())
         .run();
@@ -40,6 +57,10 @@ struct NewShapePoint(usize);
 
 #[derive(Component, Eq, PartialEq, Ord, PartialOrd)]
 struct NewShapeLine(usize, usize);
+
+fn setup_diagnostics(mut commands: Commands) {
+    commands.spawn(PerfUiCompleteBundle::default());
+}
 
 fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
     HandData {
