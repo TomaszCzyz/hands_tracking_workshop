@@ -1,9 +1,10 @@
-use crate::models::{Gesture, HandData};
-use crate::pinch_gesture::{detect_pinch_event, PinchGesture, PinchGestureInfo};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::Resource;
 use bevy::reflect::{Array, List};
 use ringbuf::{Rb, StaticRb};
+
+use crate::models::{Gesture, HandData};
+use crate::pinch_gesture::{detect_pinch_event, PinchGesture, PinchGestureInfo};
 
 pub mod flick_gesture;
 pub mod models;

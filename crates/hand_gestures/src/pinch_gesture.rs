@@ -1,7 +1,7 @@
-use crate::HandsData;
 use bevy::math::Vec3;
 use bevy::prelude::{Event, EventWriter, Real, Res, ResMut, Resource, Time, Transform};
 
+use crate::HandsData;
 use crate::models::{Gesture, HandType};
 
 const PINCH_GESTURE_MIN_INTERVAL: f32 = 0.5;

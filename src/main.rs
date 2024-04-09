@@ -3,11 +3,11 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
+use hand_gestures::{GesturePlugin, HandsData};
 use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
-use hand_gestures::{GesturePlugin, HandsData};
-use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
 use leap_input::{HandJoint, HandPhalange, LeapInputPlugin};
+use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
 
 use crate::lines::{LineList, LineMaterial};
 use crate::scene::ScenePlugin;
