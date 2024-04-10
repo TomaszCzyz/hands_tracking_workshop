@@ -26,8 +26,8 @@ fn main() {
         .add_plugins((
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
-                    title: "I am a window!".into(),
-                    name: Some("bevy.app".into()),
+                    title: "Hands tracking with bevy!".into(),
+                    name: Some("hans.tracking.app".into()),
                     present_mode: PresentMode::Immediate,
                     window_theme: Some(WindowTheme::Dark),
                     ..default()
