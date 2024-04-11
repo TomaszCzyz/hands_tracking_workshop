@@ -18,7 +18,7 @@ impl Plugin for GesturePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PinchGesture>()
             .insert_resource(HandsData::default())
-            .insert_resource(PinchGestureInfo::default())
+            .insert_resource(PinchGestureInfo::new())
             .add_systems(Update, detect_pinch_event);
     }
 }

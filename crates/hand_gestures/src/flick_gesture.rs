@@ -20,15 +20,10 @@ enum Stage {
 }
 
 pub fn detect_flick_event(hands_data: Res<HandsData>, mut hand_flick: EventWriter<FlickGesture>) {
-    let hands_data_iter = hands_data
-        .historical_data
-        .iter()
-        .map(|x| x[0].as_ref())
-        .take_while(|x| x.is_some())
-        .map(|x| x.unwrap());
+    let (first_hand_iter, second_hand_iter) = hands_data.get_iters();
 
     let mut current_stage = Stage::BeforeFlick(0);
-    for hand in hands_data_iter {
+    for hand in first_hand_iter {
         match current_stage {
             Stage::BeforeFlick(ref mut val) => {}
             Stage::Flicking(ref mut val) => {}
