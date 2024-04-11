@@ -1,7 +1,8 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use bevy::window::{PresentMode, WindowTheme};
+use bevy::diagnostic::{EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
+use bevy::window::WindowTheme;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
 
@@ -24,21 +25,19 @@ pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 400., 400.);
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Hands tracking with bevy!".into(),
-                    name: Some("hans.tracking.app".into()),
-                    present_mode: PresentMode::Immediate,
-                    window_theme: Some(WindowTheme::Dark),
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Hands tracking with bevy!".into(),
+                        name: Some("hans.tracking.app".into()),
+                        window_theme: Some(WindowTheme::Dark),
+                        ..default()
+                    }),
                     ..default()
                 }),
-                ..default()
-            }),
             WorldInspectorPlugin::new(),
-            bevy::diagnostic::FrameTimeDiagnosticsPlugin,
-            bevy::diagnostic::EntityCountDiagnosticsPlugin,
-            bevy::diagnostic::SystemInformationDiagnosticsPlugin,
-            // LogDiagnosticsPlugin::default(),
+            FrameTimeDiagnosticsPlugin,
+            EntityCountDiagnosticsPlugin,
             PerfUiPlugin,
             MaterialPlugin::<LineMaterial>::default(),
             LeapInputPlugin,
@@ -103,7 +102,7 @@ fn update_hand_data(
     mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandPhalange>, Without<HandJoint>)>,
     mut hands_history_res: ResMut<HandsData>,
 ) {
-    if let Ok(message) = leap_conn.poll(50) {
+    if let Ok(message) = leap_conn.poll(150) {
         match &message.event() {
             LeapEvent::Connection(_) => println!("connection event"),
             LeapEvent::Device(_) => println!("device event"),
