@@ -38,7 +38,6 @@ fn main() {
             bevy::diagnostic::FrameTimeDiagnosticsPlugin,
             bevy::diagnostic::EntityCountDiagnosticsPlugin,
             bevy::diagnostic::SystemInformationDiagnosticsPlugin,
-            // LogDiagnosticsPlugin::default(),
             PerfUiPlugin,
             MaterialPlugin::<LineMaterial>::default(),
             LeapInputPlugin,
@@ -74,7 +73,7 @@ fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
         middle: get_simplified_finger(leap_hand.middle()),
         ring: get_simplified_finger(leap_hand.ring()),
         pinky: get_simplified_finger(leap_hand.pinky()),
-    }
+        }
 }
 
 fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
