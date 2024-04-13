@@ -2,7 +2,7 @@ use bevy::math::Vec3;
 
 pub trait Gesture {}
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum HandType {
     Left,
     Right,

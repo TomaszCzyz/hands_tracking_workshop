@@ -102,7 +102,7 @@ fn update_hand_data(
     mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandPhalange>, Without<HandJoint>)>,
     mut hands_history_res: ResMut<HandsData>,
 ) {
-    if let Ok(message) = leap_conn.poll(150) {
+    if let Ok(message) = leap_conn.poll(50) {
         match &message.event() {
             LeapEvent::Connection(_) => println!("connection event"),
             LeapEvent::Device(_) => println!("device event"),

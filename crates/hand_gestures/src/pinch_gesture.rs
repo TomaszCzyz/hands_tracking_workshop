@@ -61,17 +61,19 @@ pub fn detect_pinch_event(
     let elapsed_time = time.elapsed_seconds();
 
     if let Some(gesture) = analyze_hand_data(first_hand_iter, elapsed_time, &pinch_gesture_info.last_pinch_times) {
+        let hand_type = gesture.hand_type;
         hand_pinch.send(gesture);
-        pinch_gesture_info.last_pinch_times[&gesture.hand_type] = elapsed_time
+        pinch_gesture_info.last_pinch_times.entry(hand_type).and_modify(|t| *t = elapsed_time);
     }
     if let Some(gesture) = analyze_hand_data(second_hand_iter, elapsed_time, &pinch_gesture_info.last_pinch_times) {
+        let hand_type = gesture.hand_type;
         hand_pinch.send(gesture);
-        pinch_gesture_info.last_pinch_times[&gesture.hand_type] = elapsed_time
+        pinch_gesture_info.last_pinch_times.entry(hand_type).and_modify(|t| *t = elapsed_time);
     }
 }
 
-fn analyze_hand_data(
-    hand_data: impl Iterator<Item=&HandData>,
+fn analyze_hand_data<'a>(
+    hand_data: impl Iterator<Item=&'a HandData>,
     time: f32,
     last_pinch_map: &HashMap<HandType, f32>,
 ) -> Option<PinchGesture> {
@@ -100,20 +102,22 @@ fn analyze_hand_data(
                 }
             }
             Stage::AfterPinch(ref mut _val) => {
-                if last_pinch_map[hand.type_] > time.elapsed_seconds() - PINCH_GESTURE_MIN_INTERVAL {
+                if last_pinch_map[&hand.type_] > time - PINCH_GESTURE_MIN_INTERVAL {
                     return None;
                 }
 
                 let middle_point = hand.index[0].lerp(hand.thumb[0], 0.5);
                 let pinch_transform = Transform::from_translation(middle_point).looking_at(hand.index[0], Vec3::Y);
 
-                return PinchGesture {
+                return Some(PinchGesture {
                     hand_type: hand.type_,
                     transform: pinch_transform,
-                };
+                });
             }
         }
     }
+
+    None
 }
 
 fn normalize_pinch_distance(distance: f32) -> f32 {
