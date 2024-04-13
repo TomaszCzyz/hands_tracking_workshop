@@ -65,11 +65,16 @@ struct GestureOccurrenceInfo {
     game_time: usize,
 }
 
+// TODO: should gesture manager be reponsible for captring events or should there be
+// a system per event that would write for shared resoure?
+
 struct GestureManager {
     // TODO: bounded collection seems appropriate for this
     gestures_timeline: Vec<GestureOccurrenceInfo>,
 }
 
 impl GestureManager {
-    fn save_gestures(&self) {}
+    fn save_gestures(&self) {
+
+    }
 }
