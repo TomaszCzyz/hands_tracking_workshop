@@ -9,7 +9,7 @@ use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
 use hand_gestures::{GesturePlugin, HandsData};
 use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
-use leap_input::{HandJoint, HandPhalange, LeapInputPlugin};
+use leap_input::{BoneComponent, HandJoint, HandPhalange, HandsOrigin, LeapInputPlugin};
 use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
 
 use crate::lines::{LineList, LineMaterial};
@@ -57,8 +57,56 @@ struct NewShapePoint(usize);
 #[derive(Component, Eq, PartialEq, Ord, PartialOrd)]
 struct NewShapeLine(usize, usize);
 
+#[derive(Component)]
+struct HandFrame(usize);
+
 fn setup_diagnostics(mut commands: Commands) {
     commands.spawn(PerfUiCompleteBundle::default());
+}
+
+fn draw_hand_frame(
+    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<HandFrame>, With<HandJoint>, Without<HandPhalange>)>,
+    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandFrame>, With<HandPhalange>, Without<HandJoint>)>,
+    mut hands_history_res: ResMut<HandsData>,
+) {
+
+}
+
+fn spawn_hands_frames_components(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let debug_material = materials.add(StandardMaterial { ..default() });
+
+    commands
+        .spawn((SpatialBundle::default(), HandsOrigin, HandFrame(0)))
+        .with_children(|parent| {
+            for _ in 0..80 {
+                parent.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(Sphere::default().mesh().uv(32, 18).scaled_by(Vec3::splat(8f32))),
+                        visibility: Visibility::Visible,
+                        material: debug_material.clone(),
+                        ..default()
+                    },
+                    BoneComponent,
+                    HandJoint,
+                ));
+            }
+            for _ in 0..40 {
+                parent.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(Cylinder::new(3f32, 15f32)),
+                        visibility: Visibility::Visible,
+                        material: debug_material.clone(),
+                        ..default()
+                    },
+                    BoneComponent,
+                    HandPhalange,
+                ));
+            }
+        });
 }
 
 fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
