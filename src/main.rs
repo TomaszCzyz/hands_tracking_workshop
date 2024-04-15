@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::diagnostic::{EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::window::WindowTheme;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use itertools::Itertools;
 use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
 
 use hand_gestures::{GesturePlugin, HandsData};
@@ -60,16 +61,26 @@ struct NewShapeLine(usize, usize);
 #[derive(Component)]
 struct HandFrame(usize);
 
+#[derive(Component)]
+struct HandFrameData {
+    time: usize,
+    hand_data: HandData,
+}
+
 fn setup_diagnostics(mut commands: Commands) {
     commands.spawn(PerfUiCompleteBundle::default());
 }
 
 fn draw_hand_frame(
+    hands_frames_data_query: Query<&HandFrameData>,
     mut joints_query: Query<(&mut Transform, &mut Visibility), (With<HandFrame>, With<HandJoint>, Without<HandPhalange>)>,
     mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandFrame>, With<HandPhalange>, Without<HandJoint>)>,
     mut hands_history_res: ResMut<HandsData>,
 ) {
+    let iter = hands_frames_data_query.iter()
+        .sorted_unstable_by(|&h1, &h2| h1.time.cmp(&h2.time));
 
+    for hand_frame_data in iter {}
 }
 
 fn spawn_hands_frames_components(

@@ -2131,6 +2131,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "hand_gestures",
+ "itertools",
  "iyes_perf_ui",
  "leap_input",
 ]
