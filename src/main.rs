@@ -7,10 +7,10 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use itertools::Itertools;
 use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
 
-use hand_gestures::{GesturePlugin, HandsData};
+use hand_gestures::{GesturePlugin, HandsData, TwoHandsData};
 use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
-use leap_input::{BoneComponent, HandJoint, HandPhalange, HandsOrigin, LeapInputPlugin};
+use leap_input::{BoneComponent, HandJoint, HandPhalange, HandsOrigin, LeapInputPlugin, PlayerHand};
 use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
 
 use crate::lines::{LineList, LineMaterial};
@@ -47,7 +47,7 @@ fn main() {
         ))
         .insert_resource(ClearColor(Color::SEA_GREEN))
         .add_systems(Startup, setup_diagnostics)
-        .add_systems(Update, update_hand_data)
+        .add_systems(Update, update_hand_history_data)
         .add_systems(Update, (spawn_sphere_on_pinch, spawn_line_on_pinch).chain())
         .run();
 }
@@ -155,7 +155,7 @@ fn get_simplified_finger(digit: Digit) -> Finger {
     ]
 }
 
-fn update_hand_data(
+fn update_hand_history_data(
     mut leap_conn: NonSendMut<Connection>,
     mut joints_query: Query<(&mut Transform, &mut Visibility), (With<HandJoint>, Without<HandPhalange>)>,
     mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandPhalange>, Without<HandJoint>)>,
@@ -220,6 +220,26 @@ fn update_hand_data(
                 }
             }
             _ => {}
+        }
+    }
+}
+
+fn update_players_hands(
+    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<PlayerHand>, With<HandJoint>, Without<HandPhalange>)>,
+    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<PlayerHand>, With<HandPhalange>, Without<HandJoint>)>,
+    hands_history_res: Res<HandsData>,
+) {
+    let last_data: TwoHandsData = hands_history_res.historical_data[0];
+
+    for hand_data in last_data {
+        // update_bones_transforms()
+    }
+}
+
+fn update_bones_transforms(&mut bones: impl Iterator<Item=&(&mut Transform, &mut Visibility)>, data: Option<HandData>) {
+    if let Some(hand_data) = data {} else {
+        while let Some((_, mut visibility)) = bones.next() {
+            *visibility = Visibility::Hidden;
         }
     }
 }

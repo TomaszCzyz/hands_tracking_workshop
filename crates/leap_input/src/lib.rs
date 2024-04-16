@@ -82,6 +82,9 @@ pub struct HandJoint;
 #[derive(Component)]
 pub struct HandPhalange;
 
+#[derive(Component)]
+pub struct PlayerHand;
+
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -96,24 +99,26 @@ fn setup(
                 parent.spawn((
                     PbrBundle {
                         mesh: meshes.add(Sphere::default().mesh().uv(32, 18).scaled_by(Vec3::splat(8f32))),
-                        visibility: Visibility::Visible,
+                        visibility: Visibility::Hidden,
                         material: debug_material.clone(),
                         ..default()
                     },
                     BoneComponent,
                     HandJoint,
+                    PlayerHand
                 ));
             }
             for _ in 0..40 {
                 parent.spawn((
                     PbrBundle {
                         mesh: meshes.add(Cylinder::new(3f32, 15f32)),
-                        visibility: Visibility::Visible,
+                        visibility: Visibility::Hidden,
                         material: debug_material.clone(),
                         ..default()
                     },
                     BoneComponent,
                     HandPhalange,
+                    PlayerHand
                 ));
             }
         });
