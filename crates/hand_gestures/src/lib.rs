@@ -1,7 +1,7 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::Resource;
 use bevy::reflect::{Array, List};
-use ringbuf::{Rb, StaticRb};
+pub use ringbuf::{Rb, StaticRb};
 
 use crate::models::{Gesture, HandData};
 use crate::pinch_gesture::{detect_pinch_event, PinchGesture, PinchGestureInfo};
@@ -65,8 +65,8 @@ struct GestureOccurrenceInfo {
     game_time: usize,
 }
 
-// TODO: should gesture manager be reponsible for captring events or should there be
-// a system per event that would write for shared resoure?
+// TODO: should gesture manager be responsible for capturing events or should there be
+// a system per event that would write for shared resource?
 
 struct GestureManager {
     // TODO: bounded collection seems appropriate for this

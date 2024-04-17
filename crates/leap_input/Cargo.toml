@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.13.0", features = ["dynamic_linking"] }
-leaprs = "0.1.4"
+bevy = { version = "0.13.2", features = ["dynamic_linking"] }
+leaprs = { version = "0.2.1", features = ["glam"] }
 ringbuf = "0.3.3"

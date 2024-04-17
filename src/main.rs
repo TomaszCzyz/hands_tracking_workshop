@@ -1,16 +1,15 @@
 use std::f32::consts::PI;
-
 use bevy::prelude::*;
 use bevy::diagnostic::{EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::window::WindowTheme;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
 
-use hand_gestures::{GesturePlugin, HandsData};
+use hand_gestures::{GesturePlugin, HandsData, Rb};
 use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
 use leap_input::{HandJoint, HandPhalange, LeapInputPlugin};
-use leap_input::leaprs::{Bone, Connection, Digit, Event as LeapEvent, Hand as LeapHand, HandType as LeapHandType};
+use leap_input::leaprs::{BoneRef, Connection, DigitRef, EventRef as LeapEvent, HandRef, HandType as LeapHandType};
 
 use crate::lines::{LineList, LineMaterial};
 use crate::scene::ScenePlugin;
@@ -61,13 +60,13 @@ fn setup_diagnostics(mut commands: Commands) {
     commands.spawn(PerfUiCompleteBundle::default());
 }
 
-fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
+fn map_from_leap_hand(leap_hand: &HandRef) -> HandData {
     HandData {
         type_: match leap_hand.hand_type() {
             LeapHandType::Left => HandType::Left,
             LeapHandType::Right => HandType::Right,
         },
-        confidence: leap_hand.confidence(),
+        confidence: leap_hand.confidence,
         thumb: get_simplified_finger(leap_hand.thumb()),
         index: get_simplified_finger(leap_hand.index()),
         middle: get_simplified_finger(leap_hand.middle()),
@@ -76,7 +75,7 @@ fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
     }
 }
 
-fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
+fn get_bones<'a>(digit: &'a DigitRef<'a>) -> [BoneRef<'a>; 4] {
     [
         digit.distal(),
         digit.proximal(),
@@ -85,21 +84,40 @@ fn get_bones<'a>(digit: &'a Digit<'a>) -> [Bone<'a>; 4] {
     ]
 }
 
-fn get_simplified_finger(digit: Digit) -> Finger {
+fn get_simplified_finger(digit: DigitRef) -> Finger {
     let bones = get_bones(&digit);
     [
-        Vec3::from_array(bones[0].next_joint().array()),
-        Vec3::from_array(bones[0].prev_joint().array()),
-        Vec3::from_array(bones[1].prev_joint().array()),
-        Vec3::from_array(bones[2].prev_joint().array()),
-        Vec3::from_array(bones[3].prev_joint().array()),
+        bones[0].next_joint().into(),
+        bones[0].prev_joint().into(),
+        bones[1].prev_joint().into(),
+        bones[2].prev_joint().into(),
+        bones[3].prev_joint().into(),
     ]
+}
+
+fn update_hands_data_resource(
+    mut leap_conn: NonSendMut<Connection>,
+    mut hands_data_res: ResMut<HandsData>,
+) {
+    if let Ok(message) = leap_conn.poll(50) {
+        match &message.event() {
+            LeapEvent::Connection(_) => println!("connection event"),
+            LeapEvent::Device(_) => println!("device event"),
+            LeapEvent::Tracking(e) => {
+                let hand1 = e.hands().get(0).and_then(|hand| Some(map_from_leap_hand(hand)));
+                let hand2 = e.hands().get(1).and_then(|hand| Some(map_from_leap_hand(hand)));
+
+                hands_data_res.historical_data.push_overwrite([hand1, hand2]);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn update_hand_data(
     mut leap_conn: NonSendMut<Connection>,
-    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<HandJoint>, Without<HandPhalange>)>,
-    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandPhalange>, Without<HandJoint>)>,
+    mut joints_query: Query<(&mut Transform, &mut Visibility), With<HandJoint>>,
+    mut phalanges_query: Query<(&mut Transform, &mut Visibility), With<HandPhalange>>,
     mut hands_history_res: ResMut<HandsData>,
 ) {
     if let Ok(message) = leap_conn.poll(50) {
