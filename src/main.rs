@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::diagnostic::{EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::window::WindowTheme;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use itertools::Itertools;
 use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
 
 use hand_gestures::{GesturePlugin, HandsData, Rb};
@@ -45,7 +46,7 @@ fn main() {
         ))
         .insert_resource(ClearColor(Color::SEA_GREEN))
         .add_systems(Startup, setup_diagnostics)
-        .add_systems(Update, update_hand_data)
+        .add_systems(Update, update_hand_history_data)
         .add_systems(Update, (spawn_sphere_on_pinch, spawn_line_on_pinch).chain())
         .run();
 }
@@ -56,17 +57,75 @@ struct NewShapePoint(usize);
 #[derive(Component, Eq, PartialEq, Ord, PartialOrd)]
 struct NewShapeLine(usize, usize);
 
+#[derive(Component)]
+struct HandFrame(usize);
+
+#[derive(Component)]
+struct HandFrameData {
+    time: usize,
+    hand_data: HandData,
+}
+
 fn setup_diagnostics(mut commands: Commands) {
     commands.spawn(PerfUiCompleteBundle::default());
 }
 
-fn map_from_leap_hand(leap_hand: &HandRef) -> HandData {
+fn draw_hand_frame(
+    hands_frames_data_query: Query<&HandFrameData>,
+    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<HandFrame>, With<HandJoint>, Without<HandPhalange>)>,
+    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandFrame>, With<HandPhalange>, Without<HandJoint>)>,
+    mut hands_history_res: ResMut<HandsData>,
+) {
+    let iter = hands_frames_data_query.iter()
+        .sorted_unstable_by(|&h1, &h2| h1.time.cmp(&h2.time));
+
+    for hand_frame_data in iter {}
+}
+
+fn spawn_hands_frames_components(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let debug_material = materials.add(StandardMaterial { ..default() });
+
+    commands
+        .spawn((SpatialBundle::default(), HandsOrigin, HandFrame(0)))
+        .with_children(|parent| {
+            for _ in 0..80 {
+                parent.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(Sphere::default().mesh().uv(32, 18).scaled_by(Vec3::splat(8f32))),
+                        visibility: Visibility::Visible,
+                        material: debug_material.clone(),
+                        ..default()
+                    },
+                    BoneComponent,
+                    HandJoint,
+                ));
+            }
+            for _ in 0..40 {
+                parent.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(Cylinder::new(3f32, 15f32)),
+                        visibility: Visibility::Visible,
+                        material: debug_material.clone(),
+                        ..default()
+                    },
+                    BoneComponent,
+                    HandPhalange,
+                ));
+            }
+        });
+}
+
+fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
     HandData {
         type_: match leap_hand.hand_type() {
             LeapHandType::Left => HandType::Left,
             LeapHandType::Right => HandType::Right,
         },
-        confidence: leap_hand.confidence,
+        confidence: leap_hand.confidence(),
         thumb: get_simplified_finger(leap_hand.thumb()),
         index: get_simplified_finger(leap_hand.index()),
         middle: get_simplified_finger(leap_hand.middle()),
@@ -114,7 +173,7 @@ fn update_hands_data_resource(
     }
 }
 
-fn update_hand_data(
+fn update_hand_history_data(
     mut leap_conn: NonSendMut<Connection>,
     mut joints_query: Query<(&mut Transform, &mut Visibility), With<HandJoint>>,
     mut phalanges_query: Query<(&mut Transform, &mut Visibility), With<HandPhalange>>,
@@ -179,6 +238,26 @@ fn update_hand_data(
                 }
             }
             _ => {}
+        }
+    }
+}
+
+fn update_players_hands(
+    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<PlayerHand>, With<HandJoint>, Without<HandPhalange>)>,
+    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<PlayerHand>, With<HandPhalange>, Without<HandJoint>)>,
+    hands_history_res: Res<HandsData>,
+) {
+    let last_data: TwoHandsData = hands_history_res.historical_data[0];
+
+    for hand_data in last_data {
+        // update_bones_transforms()
+    }
+}
+
+fn update_bones_transforms(&mut bones: impl Iterator<Item=&(&mut Transform, &mut Visibility)>, data: Option<HandData>) {
+    if let Some(hand_data) = data {} else {
+        while let Some((_, mut visibility)) = bones.next() {
+            *visibility = Visibility::Hidden;
         }
     }
 }

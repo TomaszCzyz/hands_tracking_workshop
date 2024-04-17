@@ -1,5 +1,5 @@
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::Resource;
+use bevy::prelude::{Deref, Resource};
 use bevy::reflect::{Array, List};
 pub use ringbuf::{Rb, StaticRb};
 
@@ -23,9 +23,9 @@ impl Plugin for GesturePlugin {
     }
 }
 
-type TwoHandsData = [Option<HandData>; 2];
+pub type TwoHandsData = [Option<HandData>; 2];
 
-#[derive(Resource)]
+#[derive(Resource, Deref)]
 pub struct HandsData {
     pub historical_data: StaticRb<TwoHandsData, HANDS_DATA_HISTORY_SIZE>,
 }
