@@ -6,10 +6,10 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use itertools::Itertools;
 use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
 
-use hand_gestures::{GesturePlugin, HandsData, Rb};
+use hand_gestures::{GesturePlugin, HandsData, Rb, TwoHandsData};
 use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
-use leap_input::{HandJoint, HandPhalange, LeapInputPlugin};
+use leap_input::{HandJoint, HandPhalange, HandsOrigin, LeapInputPlugin, PlayerHand};
 use leap_input::leaprs::{BoneRef, Connection, DigitRef, EventRef as LeapEvent, HandRef, HandType as LeapHandType};
 
 use crate::lines::{LineList, LineMaterial};
@@ -46,7 +46,7 @@ fn main() {
         ))
         .insert_resource(ClearColor(Color::SEA_GREEN))
         .add_systems(Startup, setup_diagnostics)
-        .add_systems(Update, update_hand_history_data)
+        .add_systems(Update, update_hands_position)
         .add_systems(Update, (spawn_sphere_on_pinch, spawn_line_on_pinch).chain())
         .run();
 }
@@ -100,7 +100,6 @@ fn spawn_hands_frames_components(
                         material: debug_material.clone(),
                         ..default()
                     },
-                    BoneComponent,
                     HandJoint,
                 ));
             }
@@ -112,20 +111,19 @@ fn spawn_hands_frames_components(
                         material: debug_material.clone(),
                         ..default()
                     },
-                    BoneComponent,
                     HandPhalange,
                 ));
             }
         });
 }
 
-fn map_from_leap_hand(leap_hand: &LeapHand) -> HandData {
+fn map_from_leap_hand(leap_hand: &HandRef) -> HandData {
     HandData {
         type_: match leap_hand.hand_type() {
             LeapHandType::Left => HandType::Left,
             LeapHandType::Right => HandType::Right,
         },
-        confidence: leap_hand.confidence(),
+        confidence: leap_hand.confidence,
         thumb: get_simplified_finger(leap_hand.thumb()),
         index: get_simplified_finger(leap_hand.index()),
         middle: get_simplified_finger(leap_hand.middle()),
@@ -173,94 +171,76 @@ fn update_hands_data_resource(
     }
 }
 
-fn update_hand_history_data(
-    mut leap_conn: NonSendMut<Connection>,
+fn update_hands_position(
+    mut hands_data_res: Res<HandsData>,
     mut joints_query: Query<(&mut Transform, &mut Visibility), With<HandJoint>>,
     mut phalanges_query: Query<(&mut Transform, &mut Visibility), With<HandPhalange>>,
-    mut hands_history_res: ResMut<HandsData>,
 ) {
-    if let Ok(message) = leap_conn.poll(50) {
-        match &message.event() {
-            LeapEvent::Connection(_) => println!("connection event"),
-            LeapEvent::Device(_) => println!("device event"),
-            LeapEvent::Tracking(e) => {
-                let mut joints_query_iter = joints_query.iter_mut();
-                let mut phalanges_query_iter = phalanges_query.iter_mut();
+    let mut joints_query_iter = joints_query.iter_mut();
+    let mut phalanges_query_iter = phalanges_query.iter_mut();
 
-                let hand1 = e.hands().get(0).and_then(|hand| Some(map_from_leap_hand(hand)));
-                let hand2 = e.hands().get(1).and_then(|hand| Some(map_from_leap_hand(hand)));
+    if let Some(hands) = hands_data_res.historical_data.iter().next() {
+        for hand in hands.iter().filter_map(Option::as_ref) {
+            for finger in [hand.thumb, hand.index, hand.middle, hand.ring, hand.pinky] {
+                for points in finger.windows(2) {
+                    let p1 = points[0];
+                    let p2 = points[1];
 
-                hands_history_res.push_overwrite([hand1.clone(), hand2.clone()]);
+                    // finger joint
+                    let (mut transform, mut visibility) = joints_query_iter.next().unwrap();
 
-                // TODO: move it to leap_input
-                for hand in e.hands().iter() {
-                    for digit in hand.digits().iter() {
-                        for bone in get_bones(digit) {
-                            for bone_joint in [bone.prev_joint(), bone.next_joint()] {
-                                let (mut transform, mut visibility) = joints_query_iter.next().unwrap();
+                    *transform = Transform {
+                        translation: p1,
+                        ..default()
+                    };
+                    *visibility = Visibility::Visible;
 
-                                *transform = Transform {
-                                    translation: Vec3::from_array(bone_joint.array()),
-                                    rotation: Quat::from_array(bone.rotation().array())
-                                        * Quat::from_rotation_x(PI / 2.),
-                                    ..default()
-                                };
-                                *visibility = Visibility::Visible;
-                            }
+                    // finger phalange
+                    let (mut transform, mut visibility) = phalanges_query_iter.next().unwrap();
 
-                            let (mut transform, mut visibility) = phalanges_query_iter.next().unwrap();
+                    let middle_point = p1.lerp(p2, 0.5);
+                    let joints_distance = p1.distance(p2);
+                    // TODO: remove magick number 15f32 (height of phalanges cylinder)
+                    let scale = joints_distance / 15f32 * 0.6;
 
-                            let prev_joint = Vec3::from_array(bone.prev_joint().array());
-                            let next_joint = Vec3::from_array(bone.next_joint().array());
-                            let middle_point = prev_joint.lerp(next_joint, 0.5);
-
-                            let joints_distance = prev_joint.distance(next_joint);
-                            // TODO: remove magick number 15f32 (height of phalanges cylinder)
-                            let scale = joints_distance / 15f32 * 0.6;
-
-                            *transform = Transform {
-                                translation: middle_point,
-                                rotation: Quat::from_array(bone.rotation().array()) * Quat::from_rotation_x(PI / 2.),
-                                scale: Vec3::new(1f32, scale, 1f32),
-                                ..default()
-                            };
-                            *visibility = Visibility::Visible;
-                        }
-                    }
+                    *transform = Transform {
+                        translation: middle_point,
+                        rotation: Quat::from_rotation_arc(Vec3::Y, (p2 - p1).normalize()) * Quat::from_rotation_x(PI / 2.),
+                        scale: Vec3::new(1f32, scale, 1f32),
+                        ..default()
+                    };
+                    *visibility = Visibility::Visible;
                 }
 
-                // hide elements if hand data is unavailable
-                while let Some((_, mut visibility)) = joints_query_iter.next() {
-                    *visibility = Visibility::Hidden;
-                }
-                while let Some((_, mut visibility)) = phalanges_query_iter.next() {
-                    *visibility = Visibility::Hidden;
-                }
+                let last_point = finger[finger.len() - 1];
+
+                let (mut transform, mut visibility) = joints_query_iter.next().unwrap();
+
+                *transform = Transform {
+                    translation: last_point,
+                    ..default()
+                };
+                *visibility = Visibility::Visible;
             }
-            _ => {}
         }
     }
-}
 
-fn update_players_hands(
-    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<PlayerHand>, With<HandJoint>, Without<HandPhalange>)>,
-    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<PlayerHand>, With<HandPhalange>, Without<HandJoint>)>,
-    hands_history_res: Res<HandsData>,
-) {
-    let last_data: TwoHandsData = hands_history_res.historical_data[0];
-
-    for hand_data in last_data {
-        // update_bones_transforms()
+    // hide elements if hand data is unavailable
+    while let Some((_, mut visibility)) = joints_query_iter.next() {
+        *visibility = Visibility::Hidden;
+    }
+    while let Some((_, mut visibility)) = phalanges_query_iter.next() {
+        *visibility = Visibility::Hidden;
     }
 }
 
-fn update_bones_transforms(&mut bones: impl Iterator<Item=&(&mut Transform, &mut Visibility)>, data: Option<HandData>) {
-    if let Some(hand_data) = data {} else {
-        while let Some((_, mut visibility)) = bones.next() {
-            *visibility = Visibility::Hidden;
-        }
-    }
-}
+// fn update_bones_transforms(&mut bones: impl Iterator<Item=&(&mut Transform, &mut Visibility)>, data: Option<HandData>) {
+//     if let Some(hand_data) = data {} else {
+//         while let Some((_, mut visibility)) = bones.next() {
+//             *visibility = Visibility::Hidden;
+//         }
+//     }
+// }
 
 fn spawn_sphere_on_pinch(
     mut commands: Commands,
