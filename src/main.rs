@@ -1,16 +1,16 @@
-use std::f32::consts::PI;
-use bevy::prelude::*;
 use bevy::diagnostic::{EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
+use bevy::prelude::*;
 use bevy::window::WindowTheme;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use itertools::Itertools;
 use iyes_perf_ui::{PerfUiCompleteBundle, PerfUiPlugin};
+use std::f32::consts::PI;
 
-use hand_gestures::{GesturePlugin, HandsData, Rb, TwoHandsData};
 use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
-use leap_input::{HandJoint, HandPhalange, HandsOrigin, LeapInputPlugin, PlayerHand};
+use hand_gestures::{GesturePlugin, HandsData, Rb, TwoHandsData};
 use leap_input::leaprs::{BoneRef, Connection, DigitRef, EventRef as LeapEvent, HandRef, HandType as LeapHandType};
+use leap_input::{HandJoint, HandPhalange, HandsOrigin, LeapInputPlugin, PlayerHand};
 
 use crate::lines::{LineList, LineMaterial};
 use crate::scene::ScenePlugin;
@@ -25,16 +25,15 @@ pub const CAMERA_ORIGIN: Transform = Transform::from_xyz(0., 400., 400.);
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title: "Hands tracking with bevy!".into(),
-                        name: Some("hans.tracking.app".into()),
-                        window_theme: Some(WindowTheme::Dark),
-                        ..default()
-                    }),
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Hands tracking with bevy!".into(),
+                    name: Some("hans.tracking.app".into()),
+                    window_theme: Some(WindowTheme::Dark),
                     ..default()
                 }),
+                ..default()
+            }),
             WorldInspectorPlugin::new(),
             FrameTimeDiagnosticsPlugin,
             EntityCountDiagnosticsPlugin,
@@ -72,11 +71,18 @@ fn setup_diagnostics(mut commands: Commands) {
 
 fn draw_hand_frame(
     hands_frames_data_query: Query<&HandFrameData>,
-    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<HandFrame>, With<HandJoint>, Without<HandPhalange>)>,
-    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandFrame>, With<HandPhalange>, Without<HandJoint>)>,
+    mut joints_query: Query<
+        (&mut Transform, &mut Visibility),
+        (With<HandFrame>, With<HandJoint>, Without<HandPhalange>),
+    >,
+    mut phalanges_query: Query<
+        (&mut Transform, &mut Visibility),
+        (With<HandFrame>, With<HandPhalange>, Without<HandJoint>),
+    >,
     mut hands_history_res: ResMut<HandsData>,
 ) {
-    let iter = hands_frames_data_query.iter()
+    let iter = hands_frames_data_query
+        .iter()
         .sorted_unstable_by(|&h1, &h2| h1.time.cmp(&h2.time));
 
     for hand_frame_data in iter {}
@@ -144,18 +150,15 @@ fn get_bones<'a>(digit: &'a DigitRef<'a>) -> [BoneRef<'a>; 4] {
 fn get_simplified_finger(digit: DigitRef) -> Finger {
     let bones = get_bones(&digit);
     [
-        bones[0].next_joint().into(),
-        bones[0].prev_joint().into(),
-        bones[1].prev_joint().into(),
-        bones[2].prev_joint().into(),
-        bones[3].prev_joint().into(),
+        Vec3::from_array(bones[0].next_joint().array()),
+        Vec3::from_array(bones[0].prev_joint().array()),
+        Vec3::from_array(bones[1].prev_joint().array()),
+        Vec3::from_array(bones[2].prev_joint().array()),
+        Vec3::from_array(bones[3].prev_joint().array()),
     ]
 }
 
-fn update_hands_data_resource(
-    mut leap_conn: NonSendMut<Connection>,
-    mut hands_data_res: ResMut<HandsData>,
-) {
+fn update_hands_data_resource(mut leap_conn: NonSendMut<Connection>, mut hands_data_res: ResMut<HandsData>) {
     if let Ok(message) = leap_conn.poll(50) {
         match &message.event() {
             LeapEvent::Connection(_) => println!("connection event"),
@@ -205,7 +208,8 @@ fn update_hands_position(
 
                     *transform = Transform {
                         translation: middle_point,
-                        rotation: Quat::from_rotation_arc(Vec3::Y, (p2 - p1).normalize()) * Quat::from_rotation_x(PI / 2.),
+                        rotation: Quat::from_rotation_arc(Vec3::Y, (p2 - p1).normalize())
+                            * Quat::from_rotation_x(PI / 2.),
                         scale: Vec3::new(1f32, scale, 1f32),
                         ..default()
                     };
