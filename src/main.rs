@@ -176,8 +176,8 @@ fn update_hands_data_resource(mut leap_conn: NonSendMut<Connection>, mut hands_d
 
 fn update_hands_position(
     mut hands_data_res: Res<HandsData>,
-    mut joints_query: Query<(&mut Transform, &mut Visibility), With<HandJoint>>,
-    mut phalanges_query: Query<(&mut Transform, &mut Visibility), With<HandPhalange>>,
+    mut joints_query: Query<(&mut Transform, &mut Visibility), (With<HandJoint>, Without<HandPhalange>)>,
+    mut phalanges_query: Query<(&mut Transform, &mut Visibility), (With<HandPhalange>, Without<HandJoint>)>,
 ) {
     let mut joints_query_iter = joints_query.iter_mut();
     let mut phalanges_query_iter = phalanges_query.iter_mut();
