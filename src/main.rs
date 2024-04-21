@@ -8,9 +8,9 @@ use std::f32::consts::PI;
 
 use hand_gestures::models::{Finger, HandData, HandType};
 use hand_gestures::pinch_gesture::PinchGesture;
-use hand_gestures::{GesturePlugin, HandsData, Rb, TwoHandsData};
+use hand_gestures::{GesturePlugin, HandsData, Rb};
 use leap_input::leaprs::{BoneRef, Connection, DigitRef, EventRef as LeapEvent, HandRef, HandType as LeapHandType};
-use leap_input::{HandJoint, HandPhalange, HandsOrigin, LeapInputPlugin, PlayerHand};
+use leap_input::{HandJoint, HandPhalange, HandsOrigin, LeapInputPlugin};
 
 use crate::lines::{LineList, LineMaterial};
 use crate::scene::ScenePlugin;
@@ -45,7 +45,7 @@ fn main() {
         ))
         .insert_resource(ClearColor(Color::SEA_GREEN))
         .add_systems(Startup, setup_diagnostics)
-        .add_systems(Update, update_hands_position)
+        .add_systems(Update, (update_hands_data_resource, update_hands_position))
         .add_systems(Update, (spawn_sphere_on_pinch, spawn_line_on_pinch).chain())
         .run();
 }
@@ -141,8 +141,8 @@ fn map_from_leap_hand(leap_hand: &HandRef) -> HandData {
 fn get_bones<'a>(digit: &'a DigitRef<'a>) -> [BoneRef<'a>; 4] {
     [
         digit.distal(),
-        digit.proximal(),
         digit.intermediate(),
+        digit.proximal(),
         digit.metacarpal(),
     ]
 }
@@ -185,40 +185,31 @@ fn update_hands_position(
     if let Some(hands) = hands_data_res.historical_data.iter().next() {
         for hand in hands.iter().filter_map(Option::as_ref) {
             for finger in [hand.thumb, hand.index, hand.middle, hand.ring, hand.pinky] {
-                for points in finger.windows(2) {
-                    let p1 = points[0];
-                    let p2 = points[1];
-
+                for (p0, p1) in finger.windows(2).map(|points| (points[0], points[1])) {
                     // finger joint
                     let (mut transform, mut visibility) = joints_query_iter.next().unwrap();
 
                     *transform = Transform {
-                        translation: p1,
+                        translation: p0,
                         ..default()
                     };
                     *visibility = Visibility::Visible;
 
                     // finger phalange
                     let (mut transform, mut visibility) = phalanges_query_iter.next().unwrap();
-
-                    let middle_point = p1.lerp(p2, 0.5);
-                    let joints_distance = p1.distance(p2);
-                    // TODO: remove magick number 15f32 (height of phalanges cylinder)
-                    let scale = joints_distance / 15f32 * 0.6;
+                    let scale = p0.distance(p1) / 15f32 * 0.6; // TODO: remove magick number 15f32 (height of phalanges cylinder)
 
                     *transform = Transform {
-                        translation: middle_point,
-                        rotation: Quat::from_rotation_arc(Vec3::Y, (p2 - p1).normalize())
-                            * Quat::from_rotation_x(PI / 2.),
+                        translation: p0.lerp(p1, 0.5),
+                        rotation: Quat::from_rotation_arc(Vec3::Y, (p0 - p1).normalize()),
                         scale: Vec3::new(1f32, scale, 1f32),
                         ..default()
                     };
                     *visibility = Visibility::Visible;
                 }
 
-                let last_point = finger[finger.len() - 1];
-
                 let (mut transform, mut visibility) = joints_query_iter.next().unwrap();
+                let last_point = finger[finger.len() - 1];
 
                 *transform = Transform {
                     translation: last_point,
